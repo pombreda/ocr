@@ -175,7 +175,7 @@ u8 ocrDbCopy(ocrGuid_t completionEvt, ocrGuid_t destination,u64 destinationOffse
 
 	ocrEventSatisfy(event_guid, param_db_guid);
 
-	/* ocrDbRelease(param_db_guid); TODO: BUG: Release tries to free */
+	/* ocrDbRelease(param_db_guid); TODO: BUG: Release tries to free **/
 
 	return 0;
 }
