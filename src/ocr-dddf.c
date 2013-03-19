@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
+#include <stdio.h>
 #include <assert.h>
 #include <pthread.h>
 
@@ -38,7 +39,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ocr-mpi.h"
 #include "ocr-dddf.h"
 
-#define D3F_AWAIT_TAG 0
+#define D3F_TERMINATION_TAG 0
+#define D3F_AWAIT_TAG       1
+#define D3F_UNIQ_TAG_START  2
+
 #define D3F_HASHTABLE_SIZE 1024
 
 volatile int unique_tag; /* unique tag for remote awaits */
@@ -140,9 +144,10 @@ static void d3f_await_listener_callback_fn(ocr_mpi_communicator_t * comm, void *
     int * data = (int*)buf;
     int id = data[0];
     int utag = data[1];
+    //printf("Listener on %d received request from %d with id: %d and tag %d\n", comm->rank, rproc, id, utag);
     ocrGuid_t event;
     ocrD3FCreate(&event, id);
-    ocrGuid_t task_guid = comm->create_db_push_on_satisfy(comm, rproc, utag);
+    ocrGuid_t task_guid = comm->create_db_push_on_satisfy(comm, rproc, utag, 1);
     ocrAddDependence(event, task_guid, 0);
     ocrEdtSchedule(task_guid);
 }
@@ -169,54 +174,93 @@ u8 ocrD3FModelInit(void) {
         d3f_hashtable[i].entry = NULL;
         pthread_mutex_init(&(d3f_hashtable[i].lock), NULL);
     }
-    unique_tag = 2;
+    unique_tag = D3F_UNIQ_TAG_START;
 
     /* setup the await listener on home */
     size_t sz = sizeof(int) * 2;
     void * buf = checked_malloc(buf, sz);
     ocr_mpi_communicator_t * comm = getD3FComm();
-    ocrGuid_t task_guid = comm->create_any_source_listener(comm, buf, sz, D3F_AWAIT_TAG, d3f_await_listener_callback_fn);
+    ocrGuid_t task_guid = comm->create_any_source_listener(comm, buf, sz, D3F_AWAIT_TAG, 0, d3f_await_listener_callback_fn);
     ocrEdtSchedule(task_guid);
 
     return 0;
 }
 
 u8 ocrD3FAddDependence(int id, int home, ocrGuid_t edt, u32 slot) {
+    ocr_mpi_communicator_t * comm = getD3FComm();
+    //printf("Dependence on %d with home %d on rank %d\n", id, home, comm->rank);
+    assert((home < comm->size) && "(ocrD3FAddDependence): DDDF home location is out of communicator scope!");
+
     ocrGuid_t event;
     bool isOwner = ocrD3FCreate(&event, id);
     ocrAddDependence(event, edt, slot);
 
-    ocr_mpi_communicator_t * comm = getD3FComm();
     if (comm->rank != home && isOwner == true) {
         size_t sz = sizeof(int) * 2;
         int * buf = checked_malloc(buf, sz);
         buf[0] = id;
         buf[1] = unique_tag_generator();
-        ocrGuid_t task_guid = comm->create_db_pull_then_satisfy(comm, buf, sz, home, D3F_AWAIT_TAG, event);
+        ocrGuid_t task_guid = comm->create_db_pull_then_satisfy(comm, buf, sz, home, D3F_AWAIT_TAG, 0, event);
         ocrEdtSchedule(task_guid);
     }
+    return 0;
+}
+
+u8 ocrD3FSatisfy(int id, int home, ocrGuid_t dataGuid) {
+    ocr_mpi_communicator_t * comm = getD3FComm();
+    //printf("Satisfy %d with home %d on rank %d\n", id, home, comm->rank);
+    assert((home < comm->size) && "(ocrD3FSatisfy): DDDF home location is out of communicator scope!");
+    if (comm->rank != home) assert(false && "Remote puts not yet supported!");
+
+    ocrGuid_t event;
+    ocrD3FCreate(&event, id);
+    ocrEventSatisfy(event, dataGuid);
     return 0;
 }
 
 u8 ocrD3FModelFinalize(int id, int home) {
+    ocr_mpi_communicator_t * comm = getD3FComm();
+    //printf("Finalize %d with home %d on rank %d\n", id, home, comm->rank);
+    assert((home < comm->size) && "(ocrD3FModelFinalize): DDDF home location is out of communicator scope!");
+
     ocrGuid_t event;
     bool isOwner = ocrD3FCreate(&event, id);
+    if (comm->rank == home) {
+        // After termination is signalled at the home location, 
+        // the home needs to send out termination messages to other nodes.
+        // The termination edt waits for all termination messages sends to complete
+        ocrGuid_t term_edt_guid;
+        ocrEdtCreate(&term_edt_guid, ocrD3FModelFinalizeEDT, 0, NULL, NULL, 0, comm->size, NULL);
+        ocrAddDependence(event, term_edt_guid, 0);
+        int i, slot;
+        for (i = 0, slot = 1; i < comm->size; i++) {
+            if (i != home) {
+                ocrGuid_t comm_event;
+                ocrEventCreate(&comm_event, OCR_EVENT_STICKY_T, true);
+                ocrAddDependence(comm_event, term_edt_guid, slot++);
 
-    ocrGuid_t edt_guid;
-    ocrEdtCreate(&edt_guid, ocrD3FModelFinalizeEDT, 0, NULL, NULL, 0, 1, NULL);
-    ocrAddDependence(event, edt_guid, 0);
+                ocrGuid_t comm_task = comm->create_send(comm, NULL, 0, i, D3F_TERMINATION_TAG, 1, comm_event);
+                ocrAddDependence(event, comm_task, 0);
+                ocrEdtSchedule(comm_task);
+            }
+        }
+        ocrEdtSchedule(term_edt_guid);
+    } else {
+        assert(isOwner && "Finalize should be called only once on unique terminating DDDF id");
+        // At remote node, termination edt waits for event being satisfied by recv.
+        ocrGuid_t term_edt_guid;
+        ocrEdtCreate(&term_edt_guid, ocrD3FModelFinalizeEDT, 0, NULL, NULL, 0, 1, NULL);
+        ocrAddDependence(event, term_edt_guid, 0);
+        ocrEdtSchedule(term_edt_guid);
 
-    ocr_mpi_communicator_t * comm = getD3FComm();
-    if (comm->rank != home && isOwner == true) {
-        size_t sz = sizeof(int) * 2;
-        int * buf = checked_malloc(buf, sz);
-        buf[0] = id;
-        buf[1] = unique_tag_generator();
-        ocrGuid_t task_guid = comm->create_db_pull_then_satisfy(comm, buf, sz, home, D3F_AWAIT_TAG, event);
-        ocrEdtSchedule(task_guid);
+        ocrGuid_t comm_task = comm->create_recv(comm, NULL, 0, home, D3F_TERMINATION_TAG, 0, event);
+        ocrEdtSchedule(comm_task);
     }
-
     ocrCleanup();
     return 0;
 }
 
+u32 ocrD3FGetRank() {
+    ocr_mpi_communicator_t * comm = getD3FComm();
+    return comm->rank;
+}

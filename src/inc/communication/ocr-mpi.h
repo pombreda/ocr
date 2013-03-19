@@ -41,9 +41,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 struct ocr_mpi_communicator_struct;
 
 typedef void (*ocr_mpi_listener_callback_fct) (struct ocr_mpi_communicator_struct * comm, void *buf, size_t sz, int rproc, int tag);
-typedef ocrGuid_t (*ocr_mpi_any_source_listener_fct) (struct ocr_mpi_communicator_struct *communicator, void *buf, size_t size, int tag, ocr_mpi_listener_callback_fct callback);
-typedef ocrGuid_t (*ocr_mpi_db_push_on_satisfy_fct) (struct ocr_mpi_communicator_struct *communicator, int tag, int rproc);
-typedef ocrGuid_t (*ocr_mpi_db_pull_then_satisfy_fct) (struct ocr_mpi_communicator_struct *communicator, void *buf, size_t size, int rproc, int tag, ocrGuid_t completionEvt);
+
+/* MPI task interfaces */
+typedef ocrGuid_t (*ocr_mpi_send_fct) (struct ocr_mpi_communicator_struct *communicator, void *buf, size_t size, int rproc, int tag, int depc, ocrGuid_t completionEvt);
+typedef ocrGuid_t (*ocr_mpi_recv_fct) (struct ocr_mpi_communicator_struct *communicator, void *buf, size_t size, int rproc, int tag, int depc, ocrGuid_t completionEvt);
+typedef ocrGuid_t (*ocr_mpi_any_source_listener_fct) (struct ocr_mpi_communicator_struct *communicator, void *buf, size_t size, int tag, int depc, ocr_mpi_listener_callback_fct callback);
+typedef ocrGuid_t (*ocr_mpi_db_push_on_satisfy_fct) (struct ocr_mpi_communicator_struct *communicator, int rproc, int tag, int depc);
+typedef ocrGuid_t (*ocr_mpi_db_pull_then_satisfy_fct) (struct ocr_mpi_communicator_struct *communicator, void *buf, size_t size, int rproc, int tag, int depc, ocrGuid_t completionEvt);
+
 
 typedef struct ocr_mpi_communicator_struct {
     ocr_communicator_t base;
@@ -58,6 +63,8 @@ typedef struct ocr_mpi_communicator_struct {
     ocr_task_factory *task_factory;
 
     /* MPI communication task create functions */
+    ocr_mpi_send_fct create_send;
+    ocr_mpi_send_fct create_recv;
     ocr_mpi_any_source_listener_fct create_any_source_listener;
     ocr_mpi_db_push_on_satisfy_fct create_db_push_on_satisfy;
     ocr_mpi_db_pull_then_satisfy_fct create_db_pull_then_satisfy;

@@ -77,8 +77,11 @@ void hc_mpi_init(ocr_communicator_t * base) {
         MPI_Abort(MPI_COMM_WORLD, 2);
     }
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &(derived->rank));
-    MPI_Comm_size(MPI_COMM_WORLD, &(derived->size));
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    derived->rank = rank;
+    derived->size = size;
 }
 
 void hc_mpi_finalize(ocr_communicator_t * base) {
@@ -98,12 +101,78 @@ hc_comm_task_t * getCurrentCommTask() {
     return (hc_comm_task_t*)deguidify(worker->currentEDT_guid);
 }
 
-u8 hc_mpi_execute_listener( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
+u8 hc_mpi_execute_send( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
     hc_mpi_args_t * mpi_args = (hc_mpi_args_t *)paramv[0];
     hc_comm_task_t * task = getCurrentCommTask();
     switch(task->status) {
     case OCR_COMM_TASK_STATUS_PRESCRIBED:
         {
+            //ocr_mpi_communicator_t * comm = (ocr_mpi_communicator_t*) task->communicator;
+            //printf("Send from %d to %d with tag %d\n", comm->rank, mpi_args->rproc, mpi_args->tag);
+            MPI_Isend(mpi_args->buf, mpi_args->sz, MPI_BYTE, mpi_args->rproc, mpi_args->tag, MPI_COMM_WORLD, &mpi_args->req);
+            task->status = OCR_COMM_TASK_STATUS_ACTIVE;
+        }
+        break;
+    case OCR_COMM_TASK_STATUS_ACTIVE:
+        {
+            int done;
+            MPI_Test(&mpi_args->req, &done, MPI_STATUS_IGNORE);
+            if (done) {
+                int *t;
+                ocrGuid_t db_guid;
+                ocrDbCreate(&db_guid, (void **) &t, sizeof(int), 0, NULL, NO_ALLOC);
+                ocrEventSatisfy(mpi_args->event, db_guid);
+                task->status = OCR_COMM_TASK_STATUS_COMPLETE;
+            }
+        }
+        break;
+    default:
+        assert(false && "Invalid comm task status");
+        break;
+    }
+    return 0;
+}
+
+u8 hc_mpi_execute_recv( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
+    hc_mpi_args_t * mpi_args = (hc_mpi_args_t *)paramv[0];
+    hc_comm_task_t * task = getCurrentCommTask();
+    switch(task->status) {
+    case OCR_COMM_TASK_STATUS_PRESCRIBED:
+        {
+            //ocr_mpi_communicator_t * comm = (ocr_mpi_communicator_t*) task->communicator;
+            //printf("Recv from %d to %d with tag %d\n", mpi_args->rproc, comm->rank, mpi_args->tag);
+            MPI_Irecv(mpi_args->buf, mpi_args->sz, MPI_BYTE, mpi_args->rproc, mpi_args->tag, MPI_COMM_WORLD, &mpi_args->req);
+            task->status = OCR_COMM_TASK_STATUS_ACTIVE;
+        }
+        break;
+    case OCR_COMM_TASK_STATUS_ACTIVE:
+        {
+            int done;
+            MPI_Test(&mpi_args->req, &done, MPI_STATUS_IGNORE);
+            if (done) {
+                int *t;
+                ocrGuid_t db_guid;
+                ocrDbCreate(&db_guid, (void **) &t, sizeof(int), 0, NULL, NO_ALLOC);
+                ocrEventSatisfy(mpi_args->event, db_guid);
+                task->status = OCR_COMM_TASK_STATUS_COMPLETE;
+            }
+        }
+        break;
+    default:
+        assert(false && "Invalid comm task status");
+        break;
+    }
+    return 0;
+}
+
+u8 hc_mpi_execute_listener( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
+    hc_mpi_args_t * mpi_args = (hc_mpi_args_t *)paramv[0];
+    hc_comm_task_t * task = getCurrentCommTask();
+    //ocr_mpi_communicator_t * comm = (ocr_mpi_communicator_t*) task->communicator;
+    switch(task->status) {
+    case OCR_COMM_TASK_STATUS_PRESCRIBED:
+        {
+            //printf("Listener Recv from %d to %d with tag %d\n", mpi_args->rproc, comm->rank, mpi_args->tag);
             MPI_Irecv(mpi_args->buf, mpi_args->sz, MPI_BYTE, mpi_args->rproc, mpi_args->tag, MPI_COMM_WORLD, &mpi_args->req);
             task->status = OCR_COMM_TASK_STATUS_ACTIVE;
         }
@@ -116,6 +185,7 @@ u8 hc_mpi_execute_listener( u32 paramc, u64 * params, void* paramv[], u32 depc, 
             if (done) {
                 MPI_Get_count(&status, MPI_BYTE, &count);
                 mpi_args->callback((ocr_mpi_communicator_t *)task->communicator, mpi_args->buf, count, status.MPI_SOURCE, status.MPI_TAG);
+                //printf("Listener Recv from %d to %d with tag %d\n", mpi_args->rproc, comm->rank, mpi_args->tag);
                 MPI_Irecv(mpi_args->buf, mpi_args->sz, MPI_BYTE, mpi_args->rproc, mpi_args->tag, MPI_COMM_WORLD, &mpi_args->req);
             }
         }
@@ -139,6 +209,8 @@ u8 hc_mpi_execute_db_push_on_satisfy( u32 paramc, u64 * params, void* paramv[], 
             mpi_args->buf = depv[0].ptr;
             ocrDataBlock_t *dataBlock = (ocrDataBlock_t*)deguidify(depv[0].guid); /* TODO: assert guid type is datablock */
             dataBlock->getSize(dataBlock, (u64*)(&(mpi_args->sz)));
+            //ocr_mpi_communicator_t * comm = (ocr_mpi_communicator_t*) task->communicator;
+            //printf("DB Push Send from %d to %d with tag %d\n", comm->rank, mpi_args->rproc, mpi_args->tag);
             MPI_Isend(&mpi_args->sz, sizeof(int), MPI_BYTE, mpi_args->rproc, mpi_args->tag, MPI_COMM_WORLD, &mpi_args->req);
             MPI_Isend(mpi_args->buf, mpi_args->sz, MPI_BYTE, mpi_args->rproc, (mpi_args->tag + 1), MPI_COMM_WORLD, &mpi_args->req2);
             task->status = OCR_COMM_TASK_STATUS_ACTIVE;
@@ -147,7 +219,7 @@ u8 hc_mpi_execute_db_push_on_satisfy( u32 paramc, u64 * params, void* paramv[], 
     case OCR_COMM_TASK_STATUS_ACTIVE:
         {
             int done;
-            MPI_Test(&mpi_args->req2, &done, MPI_STATUS_IGNORE);
+            MPI_Test(&mpi_args->req2, &done, MPI_STATUS_IGNORE); /* req2 test success implies req is done */
             if (done) task->status = OCR_COMM_TASK_STATUS_COMPLETE;
         }
         break;
@@ -161,9 +233,11 @@ u8 hc_mpi_execute_db_push_on_satisfy( u32 paramc, u64 * params, void* paramv[], 
 u8 hc_mpi_execute_db_pull_then_satisfy( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
     hc_mpi_args_t * mpi_args = (hc_mpi_args_t *)paramv[0];
     hc_comm_task_t * task = getCurrentCommTask();
+    //ocr_mpi_communicator_t * comm = (ocr_mpi_communicator_t*) task->communicator;
     switch(task->status) {
     case OCR_COMM_TASK_STATUS_PRESCRIBED:
         {
+            //printf("DB Pull Send from %d to %d with tag %d\n", comm->rank, mpi_args->rproc, mpi_args->tag);
             MPI_Isend(mpi_args->buf, mpi_args->sz, MPI_BYTE, mpi_args->rproc, mpi_args->tag, MPI_COMM_WORLD, &mpi_args->req);
             task->status = OCR_COMM_TASK_STATUS_ACTIVE;
         }
@@ -177,11 +251,13 @@ u8 hc_mpi_execute_db_pull_then_satisfy( u32 paramc, u64 * params, void* paramv[]
                 if (mpi_args->phase == 0) {
                     int * tbuf = (int *)mpi_args->buf;
                     mpi_args->tag = tbuf[1];
+                    //printf("DB Pull Recv from %d to %d with tag %d\n", mpi_args->rproc, comm->rank, mpi_args->tag);
                     MPI_Irecv(&mpi_args->sz, sizeof(int), MPI_BYTE, mpi_args->rproc, mpi_args->tag, MPI_COMM_WORLD, &mpi_args->req);
                 } else if (mpi_args->phase == 1) {
                     ocrGuid_t db_guid;
                     ocrDbCreate(&db_guid, &mpi_args->buf, mpi_args->sz, 0, NULL, NO_ALLOC);
                     mpi_args->db = db_guid;
+                    //printf("DB Pull Recv from %d to %d with tag %d\n", mpi_args->rproc, comm->rank, mpi_args->tag+1);
                     MPI_Irecv(mpi_args->buf, mpi_args->sz, MPI_BYTE, mpi_args->rproc, mpi_args->tag + 1, MPI_COMM_WORLD, &mpi_args->req);
                 } else if (mpi_args->phase == 2) {
                     ocrEventSatisfy(mpi_args->event, mpi_args->db);
@@ -202,7 +278,41 @@ u8 hc_mpi_execute_db_pull_then_satisfy( u32 paramc, u64 * params, void* paramv[]
 /* HC-MPI TASK CONSTRUCTORS                         */
 /****************************************************/
 
-ocrGuid_t hc_mpi_create_any_source_listener(ocr_mpi_communicator_t* communicator, void * buf, size_t size, int tag, ocr_mpi_listener_callback_fct callback) {
+ocrGuid_t hc_mpi_create_send(ocr_mpi_communicator_t* communicator, void *buf, size_t size, int rproc, int tag, int depc, ocrGuid_t completionEvt) {
+    size_t params = sizeof(hc_mpi_args_t);
+    hc_mpi_args_t * mpi_args = (hc_mpi_args_t *) checked_malloc(mpi_args, params);
+    mpi_args->buf = buf;
+    mpi_args->sz = size;
+    mpi_args->rproc = rproc;
+    mpi_args->tag = tag;
+    mpi_args->callback = NULL;
+    mpi_args->params = (u64)params;
+    mpi_args->paramv = mpi_args;
+    mpi_args->event = completionEvt;
+    ocrGuid_t task_guid = communicator->task_factory->create(communicator->task_factory, hc_mpi_execute_send, 1, &(mpi_args->params), (void**)(&(mpi_args->paramv)), depc);
+    hc_comm_task_t * task = (hc_comm_task_t *)deguidify(task_guid);
+    task->status = OCR_COMM_TASK_STATUS_PRESCRIBED;
+    return task_guid;
+}
+
+ocrGuid_t hc_mpi_create_recv(ocr_mpi_communicator_t* communicator, void *buf, size_t size, int rproc, int tag, int depc, ocrGuid_t completionEvt) {
+    size_t params = sizeof(hc_mpi_args_t);
+    hc_mpi_args_t * mpi_args = (hc_mpi_args_t *) checked_malloc(mpi_args, params);
+    mpi_args->buf = buf;
+    mpi_args->sz = size;
+    mpi_args->rproc = rproc;
+    mpi_args->tag = tag;
+    mpi_args->callback = NULL;
+    mpi_args->params = (u64)params;
+    mpi_args->paramv = mpi_args;
+    mpi_args->event = completionEvt;
+    ocrGuid_t task_guid = communicator->task_factory->create(communicator->task_factory, hc_mpi_execute_recv, 1, &(mpi_args->params), (void**)(&(mpi_args->paramv)), depc);
+    hc_comm_task_t * task = (hc_comm_task_t *)deguidify(task_guid);
+    task->status = OCR_COMM_TASK_STATUS_PRESCRIBED;
+    return task_guid;
+}
+
+ocrGuid_t hc_mpi_create_any_source_listener(ocr_mpi_communicator_t* communicator, void * buf, size_t size, int tag, int depc, ocr_mpi_listener_callback_fct callback) {
     size_t params = sizeof(hc_mpi_args_t);
     hc_mpi_args_t * mpi_args = (hc_mpi_args_t *) checked_malloc(mpi_args, params);
     mpi_args->buf = buf;
@@ -212,13 +322,13 @@ ocrGuid_t hc_mpi_create_any_source_listener(ocr_mpi_communicator_t* communicator
     mpi_args->callback = callback;
     mpi_args->params = (u64)params;
     mpi_args->paramv = mpi_args;
-    ocrGuid_t task_guid = communicator->task_factory->create(communicator->task_factory, hc_mpi_execute_listener, 1, &(mpi_args->params), (void**)(&(mpi_args->paramv)), 0);
+    ocrGuid_t task_guid = communicator->task_factory->create(communicator->task_factory, hc_mpi_execute_listener, 1, &(mpi_args->params), (void**)(&(mpi_args->paramv)), depc);
     hc_comm_task_t * task = (hc_comm_task_t *)deguidify(task_guid);
     task->status = OCR_COMM_TASK_STATUS_PRESCRIBED;
     return task_guid;
 }
 
-ocrGuid_t hc_mpi_create_db_push_on_satisfy(ocr_mpi_communicator_t* communicator, int tag, int rproc) {
+ocrGuid_t hc_mpi_create_db_push_on_satisfy(ocr_mpi_communicator_t* communicator, int rproc, int tag, int depc ) {
     size_t params = sizeof(hc_mpi_args_t);
     hc_mpi_args_t * mpi_args = (hc_mpi_args_t *) checked_malloc(mpi_args, params);
     mpi_args->buf = NULL;
@@ -228,13 +338,13 @@ ocrGuid_t hc_mpi_create_db_push_on_satisfy(ocr_mpi_communicator_t* communicator,
     mpi_args->callback = NULL;
     mpi_args->params = (u64)params;
     mpi_args->paramv = mpi_args;
-    ocrGuid_t task_guid = communicator->task_factory->create(communicator->task_factory, hc_mpi_execute_db_push_on_satisfy, 1, &(mpi_args->params), (void**)(&(mpi_args->paramv)), 0);
+    ocrGuid_t task_guid = communicator->task_factory->create(communicator->task_factory, hc_mpi_execute_db_push_on_satisfy, 1, &(mpi_args->params), (void**)(&(mpi_args->paramv)), depc);
     hc_comm_task_t * task = (hc_comm_task_t *)deguidify(task_guid);
     task->status = OCR_COMM_TASK_STATUS_PRESCRIBED;
     return task_guid;
 }
 
-ocrGuid_t hc_mpi_create_db_pull_then_satisfy(ocr_mpi_communicator_t* communicator, void *buf, size_t size, int rproc, int tag, ocrGuid_t completionEvt) {
+ocrGuid_t hc_mpi_create_db_pull_then_satisfy(ocr_mpi_communicator_t* communicator, void *buf, size_t size, int rproc, int tag, int depc, ocrGuid_t completionEvt) {
     size_t params = sizeof(hc_mpi_args_t);
     hc_mpi_args_t * mpi_args = (hc_mpi_args_t *) checked_malloc(mpi_args, params);
     mpi_args->buf = buf;
@@ -246,7 +356,7 @@ ocrGuid_t hc_mpi_create_db_pull_then_satisfy(ocr_mpi_communicator_t* communicato
     mpi_args->params = (u64)params;
     mpi_args->paramv = mpi_args;
     mpi_args->event = completionEvt;
-    ocrGuid_t task_guid = communicator->task_factory->create(communicator->task_factory, hc_mpi_execute_db_pull_then_satisfy, 1, &(mpi_args->params), (void**)(&(mpi_args->paramv)), 0);
+    ocrGuid_t task_guid = communicator->task_factory->create(communicator->task_factory, hc_mpi_execute_db_pull_then_satisfy, 1, &(mpi_args->params), (void**)(&(mpi_args->paramv)), depc);
     hc_comm_task_t * task = (hc_comm_task_t *)deguidify(task_guid);
     task->status = OCR_COMM_TASK_STATUS_PRESCRIBED;
     return task_guid;
@@ -269,6 +379,8 @@ ocr_communicator_t * ocr_hc_mpi_communicator_constructor(ocr_communicator_kind c
     base->destruct = hc_mpi_destruct;
 
     derived->task_factory = hc_comm_task_factory_constructor(base);
+    derived->create_send = hc_mpi_create_send;
+    derived->create_recv = hc_mpi_create_recv;
     derived->create_any_source_listener = hc_mpi_create_any_source_listener;
     derived->create_db_push_on_satisfy = hc_mpi_create_db_push_on_satisfy;
     derived->create_db_pull_then_satisfy = hc_mpi_create_db_pull_then_satisfy;

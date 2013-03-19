@@ -189,8 +189,8 @@ void * worker_communication_routine(void * arg) {
     }
 
     /* stop the communication runtime */
-    //for (i = 0; i < policy->nb_communicators; i++)
-    //    policy->communicators[i]->stop(policy->communicators[i]);
+    for (i = 0; i < policy->nb_communicators; i++)
+        policy->communicators[i]->stop(policy->communicators[i]);
 
     return NULL;
 }

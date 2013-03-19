@@ -41,4 +41,4 @@ ocrLowMemoryKind ocrLowMemoryDefaultKind = OCR_LOWMEMORY_MALLOC;
 ocrDataBlockKind ocrDataBlockDefaultKind = OCR_DATABLOCK_REGULAR;
 ocrLockKind ocrLockDefaultKind = OCR_LOCK_X86;
 
-u32 ocr_config_default_nb_hardware_threads = 8;
+u32 ocr_config_default_nb_hardware_threads = 4;
