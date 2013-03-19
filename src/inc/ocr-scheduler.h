@@ -40,6 +40,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 /****************************************************/
+/* OCR SCHEDULER KINDS                              */
+/****************************************************/
+
+typedef enum ocr_scheduler_kind_enum {
+    OCR_SCHEDULER_WST = 1,
+    OCR_SCHEDULER_COMM
+} ocr_scheduler_kind;
+
+/****************************************************/
 /* OCR SCHEDULER API                                */
 /****************************************************/
 
@@ -72,6 +81,7 @@ typedef void (*scheduler_give_fct) (struct ocr_scheduler_struct * , ocrGuid_t wi
  */
 typedef struct ocr_scheduler_struct {
     ocr_module_t module;
+    ocr_scheduler_kind kind;
     scheduler_create_fct create;
     scheduler_destruct_fct destruct;
     scheduler_pop_mapping_fct pop_mapping;
@@ -84,15 +94,12 @@ typedef struct ocr_scheduler_struct {
 
 
 /****************************************************/
-/* OCR SCHEDULER KINDS AND CONSTRUCTORS             */
+/* OCR SCHEDULER CONSTRUCTORS                       */
 /****************************************************/
-
-typedef enum ocr_scheduler_kind_enum {
-    OCR_SCHEDULER_WST = 1
-} ocr_scheduler_kind;
 
 ocr_scheduler_t * newScheduler(ocr_scheduler_kind schedulerType);
 
-ocr_scheduler_t * hc_scheduler_constructor(void);
+extern ocr_scheduler_t * hc_scheduler_constructor(ocr_scheduler_kind schedulerType);
+extern ocr_scheduler_t * hc_comm_scheduler_constructor(ocr_scheduler_kind schedulerType);
 
 #endif /* __OCR_SCHEDULER_H__ */

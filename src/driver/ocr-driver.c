@@ -95,15 +95,8 @@ void ocrInit(int * argc, char ** argv, u32 fnc, ocrEdt_t funcs[]) {
         }
     }
 
-    // This is the default policy
-    // TODO this should be declared in the default policy model
-    size_t nb_workers = nbHardThreads;
-    size_t nb_workpiles = nbHardThreads;
-    size_t nb_executors = nbHardThreads;
-    size_t nb_schedulers = 1;
-
-    ocr_model_policy_t * policy_model = defaultOcrModelPolicy(nb_schedulers, nb_workers,
-            nb_executors, nb_workpiles);
+    // TODO Make policy decision parameterized in ocrInit args
+    ocr_model_policy_t * policy_model = hcCommOcrModelPolicy(argc, argv, nbHardThreads);
 
     //TODO LIMITATION for now support only one policy
     root_policy = instantiateModel(policy_model);

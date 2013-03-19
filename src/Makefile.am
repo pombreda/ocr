@@ -1,7 +1,7 @@
 SUBDIRS =
 
 # Includes folder we need when compiling ocr
-OCR_INCLUDES_DIR = -I$(top_srcdir)/inc -I$(top_srcdir)/src/inc -I$(top_srcdir)/src/inc/hc
+OCR_INCLUDES_DIR = -I$(top_srcdir)/inc -I$(top_srcdir)/src/inc -I$(top_srcdir)/src/inc/communication -I$(top_srcdir)/src/inc/hc
 
 # cflags: important to define that otherwise we inherit default values too
 CFLAGS = -Wall -g -O2
@@ -24,6 +24,7 @@ noinst_LTLIBRARIES =
 libocr_la_LIBADD =
 
 include allocator/Makefile.inc
+include communication/Makefile.inc
 include datablock/Makefile.inc
 include driver/Makefile.inc
 include executor/Makefile.inc
@@ -38,7 +39,7 @@ include utils/Makefile.inc
 include workpile/Makefile.inc
 
 # build the ocr runtime library
-libocr_la_SOURCES = ocr-runtime.c ocr-edt.c ocr-db.c
+libocr_la_SOURCES = ocr-runtime.c ocr-edt.c ocr-db.c ocr-dddf.c
 libocr_la_CFLAGS = $(AM_CFLAGS)
 
 MAINTAINERCLEANFILES = Makefile.in

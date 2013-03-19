@@ -37,6 +37,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ocr-scheduler.h"
 
 /******************************************************/
+/* OCR WORKER KINDS                                   */
+/******************************************************/
+
+typedef enum ocr_worker_kind_enum {
+    OCR_WORKER_HC = 1,
+    OCR_WORKER_HC_COMM
+} ocr_worker_kind;
+
+/******************************************************/
 /* OCR WORKER                                         */
 /******************************************************/
 
@@ -92,6 +101,7 @@ typedef void (*ocr_worker_set_currentEDT)(struct ocr_worker_struct *base, ocrGui
 
 typedef struct ocr_worker_struct {
     ocr_module_t module;
+    ocr_worker_kind kind;
     ocr_scheduler_t * scheduler;
     worker_routine routine;
     ocr_worker_create_fct create;
@@ -130,15 +140,12 @@ ocrGuid_t ocr_get_current_worker_guid();
 
 
 /******************************************************/
-/* OCR WORKER KINDS AND CONSTRUCTORS                  */
+/* OCR WORKER CONSTRUCTORS                            */
 /******************************************************/
-
-typedef enum ocr_worker_kind_enum {
-    OCR_WORKER_HC = 1
-} ocr_worker_kind;
 
 ocr_worker_t * newWorker(ocr_worker_kind workerType);
 
-ocr_worker_t* hc_worker_constructor(void);
+extern ocr_worker_t* hc_worker_constructor(ocr_worker_kind workerType);
+extern ocr_worker_t* hc_comm_worker_constructor(ocr_worker_kind workerType);
 
 #endif /* __OCR_LOW_WORKERS_H__ */

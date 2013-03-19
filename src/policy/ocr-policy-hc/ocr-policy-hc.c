@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
  */
 
+#include <assert.h>
 #include "ocr-macros.h"
 #include "hc.h"
 #include "ocr-policy.h"
@@ -36,13 +37,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 void hc_policy_domain_create(ocr_policy_domain_t * policy, void * configuration,
                              ocr_scheduler_t ** schedulers, ocr_worker_t ** workers,
                              ocr_executor_t ** executors, ocr_workpile_t ** workpiles,
-                             ocrAllocator_t ** allocators, ocrLowMemory_t ** memories) {
+                             ocrAllocator_t ** allocators, ocrLowMemory_t ** memories,
+                             ocr_communicator_t ** communicators) {
     policy->schedulers = schedulers;
     policy->workers = workers;
     policy->executors = executors;
     policy->workpiles = workpiles;
     policy->allocators = allocators;
     policy->memories = memories;
+    policy->communicators = communicators;
 }
 
 void hc_policy_domain_start(ocr_policy_domain_t * policy) {
@@ -116,16 +119,19 @@ ocrGuid_t hc_policy_getAllocator(ocr_policy_domain_t * policy, ocrLocation_t* lo
     return guidify((ocrAllocator_t *)(policy->allocators[0]));
 }
 
-ocr_policy_domain_t * hc_policy_domain_constructor(size_t nb_workpiles,
+ocr_policy_domain_t * hc_policy_domain_constructor(ocr_policy_kind policyType,
+        size_t nb_workpiles,
         size_t nb_workers,
         size_t nb_executors,
         size_t nb_schedulers) {
     ocr_policy_domain_t * policy = (ocr_policy_domain_t *) checked_malloc(policy, sizeof(ocr_policy_domain_t));
+    policy->kind = policyType;
     policy->nb_executors = nb_executors;
     policy->nb_workpiles = nb_workpiles;
     policy->nb_workers = nb_workers;
     policy->nb_executors = nb_executors;
     policy->nb_schedulers = nb_schedulers;
+    policy->nb_communicators = 0;
     policy->create = hc_policy_domain_create;
     policy->start = hc_policy_domain_start;
     policy->finish = hc_policy_domain_finish;
@@ -134,3 +140,39 @@ ocr_policy_domain_t * hc_policy_domain_constructor(size_t nb_workpiles,
     policy->getAllocator = hc_policy_getAllocator;
     return policy;
 }
+
+/******************************************************/
+/* HC-COMM Policy Domain                              */
+/******************************************************/
+
+void hc_comm_policy_domain_start(ocr_policy_domain_t * policy) {
+    hc_policy_domain_start(policy);
+    hc_comm_policy_domain_t * derived = (hc_comm_policy_domain_t*) policy;
+    while (derived->isCommunicationReady == 0);
+}
+
+ocr_policy_domain_t * hc_comm_policy_domain_constructor(ocr_policy_kind policyType,
+        size_t nb_workpiles,
+        size_t nb_workers,
+        size_t nb_executors,
+        size_t nb_schedulers,
+        size_t nb_communicators) {
+    hc_comm_policy_domain_t * derived = (hc_comm_policy_domain_t *) checked_malloc(derived, sizeof(hc_comm_policy_domain_t));
+    derived->isCommunicationReady = 0;
+    ocr_policy_domain_t * policy = (ocr_policy_domain_t*)derived;
+    policy->kind = policyType;
+    policy->nb_executors = nb_executors;
+    policy->nb_workpiles = nb_workpiles;
+    policy->nb_workers = nb_workers;
+    policy->nb_executors = nb_executors;
+    policy->nb_schedulers = nb_schedulers;
+    policy->nb_communicators = nb_communicators;
+    policy->create = hc_policy_domain_create;
+    policy->start = hc_comm_policy_domain_start;
+    policy->finish = hc_policy_domain_finish;
+    policy->stop = hc_policy_domain_stop;
+    policy->destruct = hc_policy_domain_destruct;
+    policy->getAllocator = hc_policy_getAllocator;
+    return policy;
+}
+

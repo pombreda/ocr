@@ -52,14 +52,14 @@
  * @warning Currently, only OCR_EVENT_STICKY_T work properly with the HC runtime.
  */
 typedef enum {
-    OCR_EVENT_ONCE_T,    /**< The event is automatically destroyed on satisfaction */
-    OCR_EVENT_IDEM_T,    /**< The event exists until explicitly destroyed with
-                          * ocrEventDestroy. It is satisfied once and susequent
-                          * satisfactions are ignored (use case: BFS, B&B..) */
-    OCR_EVENT_STICKY_T,  /**< The event exists until explicitly destroyed with
-                          * ocrEventDestroy. Multiple satisfactions result
-                          * in an error */
-    OCR_EVENT_T_MAX      /**< Marker */
+    OCR_EVENT_ONCE_T,         /**< The event is automatically destroyed on satisfaction */
+    OCR_EVENT_IDEM_T,         /**< The event exists until explicitly destroyed with
+                               * ocrEventDestroy. It is satisfied once and susequent
+                               * satisfactions are ignored (use case: BFS, B&B..) */
+    OCR_EVENT_STICKY_T,       /**< The event exists until explicitly destroyed with
+                               * ocrEventDestroy. Multiple satisfactions result
+                               * in an error */
+    OCR_EVENT_T_MAX           /**< Marker */
 } ocrEventTypes_t;
 
 /**
@@ -71,6 +71,9 @@ typedef enum {
  * @param guid            The new GUID allocated for the new event
  * @param eventType       The type of the event to create
  * @param takesArg        True if this event will carry data with it or false otherwise
+ * @param location        Location where this event will be satisfied. If remote, this 
+                          creates a local copy of the event enabling tasks to wait on a remote event.
+                          If NULL, location is assumed to be that of currently executing task.
  * @return 0 on success and an error code on failure:
  *     - ENOMEM: Returned if space cannot be found to allocate the event
  *     - EINVAL: Returned if event_type was malformed or is incompatible with takesArg

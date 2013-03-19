@@ -29,19 +29,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef __OCR_RUNTIME_H_
-#define __OCR_RUNTIME_H_
-
-#include "ocr-guid.h"
-#include "ocr-utils.h"
-#include "ocr-executor.h"
-#include "ocr-low-workers.h"
-#include "ocr-machine.h"
-#include "ocr-scheduler.h"
-#include "ocr-policy.h"
-#include "ocr-task-event.h"
-#include "ocr-runtime-model.h"
+#include <assert.h>
 #include "ocr-communication.h"
+#include "ocr-runtime.h"
 
+ocr_communicator_t * newCommunicator(ocr_communicator_kind communicatorType) {
+    switch(communicatorType) {
+    case OCR_HC_MPI:
+        return ocr_hc_mpi_communicator_constructor(communicatorType);
+    default:
+        assert(false && "Unrecognized communicator kind");
+        break;
+    }
 
-#endif /* __OCR_RUNTIME_H_ */
+    return NULL;
+}
+
+ocr_communicator_t * ocrGetCommunicator(ocr_communicator_kind communicatorType) {
+    int i;
+    ocrGuid_t workerGuid = ocr_get_current_worker_guid();
+    ocr_worker_t * worker = (ocr_worker_t*)deguidify(workerGuid);
+    ocr_policy_domain_t * policy = (ocr_policy_domain_t *)deguidify(worker->getCurrentPolicyDomain(worker));
+    for (i = 0; i < policy->nb_communicators; i++)
+        if (policy->communicators[i]->kind == communicatorType)
+            return policy->communicators[i];
+    return NULL;
+}
+

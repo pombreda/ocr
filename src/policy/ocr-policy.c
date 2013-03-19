@@ -39,11 +39,15 @@ ocr_policy_domain_t * newPolicy(ocr_policy_kind policyType,
         size_t nb_workpiles,
         size_t nb_workers,
         size_t nb_executors,
-        size_t nb_schedulers) {
+        size_t nb_schedulers,
+        size_t nb_communicators) {
     switch(policyType) {
     case OCR_POLICY_HC:
-        return hc_policy_domain_constructor(nb_workpiles, nb_workers,
+        return hc_policy_domain_constructor(policyType, nb_workpiles, nb_workers,
                 nb_executors, nb_schedulers);
+    case OCR_POLICY_HC_COMM:
+        return hc_comm_policy_domain_constructor(policyType, nb_workpiles, nb_workers,
+                nb_executors, nb_schedulers, nb_communicators);
     default:
         assert(false && "Unrecognized policy domain kind");
         break;

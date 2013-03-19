@@ -39,12 +39,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //TODO don't like that: I think we should have some kind of a plugin
 // mechanism where an implementation can associate its string to a function pointer.
 // i.e HC_WORKPOOL -> hc_workpile_constructor
-extern ocr_workpile_t * hc_workpile_constructor();
+extern ocr_workpile_t * hc_workpile_constructor(ocr_workpile_kind workpileType);
+extern ocr_workpile_t * hc_comm_workpile_constructor(ocr_workpile_kind workpileType);
 
 ocr_workpile_t * newWorkpile(ocr_workpile_kind workpileType) {
     switch(workpileType) {
     case OCR_DEQUE:
-        return hc_workpile_constructor();
+        return hc_workpile_constructor(workpileType);
+    case OCR_LIST:
+        return hc_comm_workpile_constructor(workpileType);
     default:
         assert(false && "Unrecognized workpile kind");
         break;

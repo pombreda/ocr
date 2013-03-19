@@ -70,9 +70,17 @@ typedef intptr_t ocrGuid_t;
  *
  * @todo Add capabilities based on policies, etc
  **/
-typedef struct {
-    ocrGuid_t locationId;
+typedef union __attribute__ ((aligned (8))) {
+    u64 address;
+    struct {
+        u32 core;
+        u32 node;
+    };
 } ocrLocation_t;
+
+#define OCR_LOCATION_SET_DEFAULT(loc) { (*loc).address = ((u64)-1); }
+#define OCR_LOCATION_SET_NODE(loc, n) { (*loc).node = n; }
+#define OCR_LOCATION_SET_CORE(loc, c) { (*loc).core = c; }
 
 /**
  * @brief Allocators that can be used to allocate

@@ -37,7 +37,7 @@
 #include "ocr-task-event.h"
 
 void regularCreate(ocrDataBlock_t *self, ocrGuid_t allocatorGuid, u64 size,
-                   u16 flags, void* configuration) {
+                   ocrLocation_t * location, u16 flags, void* configuration) {
 
     ocrAllocator_t *allocator = (ocrAllocator_t*)deguidify(allocatorGuid);
     ASSERT(allocator);
@@ -46,6 +46,7 @@ void regularCreate(ocrDataBlock_t *self, ocrGuid_t allocatorGuid, u64 size,
     rself->ptr = allocator->allocate(allocator, size);
     rself->allocatorGuid = allocatorGuid;
     rself->size = size;
+    rself->location = *location;
     rself->lock->create(rself->lock, NULL); // TODO sagnak NULL is for config?
     rself->attributes.flags = flags;
     rself->attributes.numUsers = 0;
@@ -177,6 +178,18 @@ u8 regularFree(ocrDataBlock_t *self, ocrGuid_t edt) {
     return 0;
 }
 
+u8 regularGetSize(struct _ocrDataBlock_t *self, u64 * sz) {
+    ocrDataBlockRegular_t *rself = (ocrDataBlockRegular_t*)self;
+    *sz = rself->size;
+    return 0;
+}
+
+u8 regularGetLocation(struct _ocrDataBlock_t *self, ocrLocation_t * loc) {
+    ocrDataBlockRegular_t *rself = (ocrDataBlockRegular_t*)self;
+    *loc = rself->location;
+    return 0;
+}
+
 ocrDataBlock_t* newDataBlockRegular() {
     ocrDataBlockRegular_t *result = (ocrDataBlockRegular_t*)malloc(sizeof(ocrDataBlockRegular_t));
     result->base.create = &regularCreate;
@@ -184,6 +197,8 @@ ocrDataBlock_t* newDataBlockRegular() {
     result->base.acquire = &regularAcquire;
     result->base.release = &regularRelease;
     result->base.free = &regularFree;
+    result->base.getSize = &regularGetSize;
+    result->base.getLocation = &regularGetLocation;
     result->lock = newLock(OCR_LOCK_DEFAULT);
 
     return (ocrDataBlock_t*)result;

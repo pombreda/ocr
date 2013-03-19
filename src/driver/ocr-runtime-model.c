@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -39,6 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ocr-policy.h"
 #include "ocr-runtime-model.h"
 #include "ocr-config.h"
+#include "hc.h"
 
 /**!
  * Helper function to build a module mapping
@@ -178,6 +180,7 @@ ocr_model_policy_t * defaultOcrModelPolicy(size_t nb_schedulers, size_t nb_worke
     defaultPolicy->nb_worker_types = 1;
     defaultPolicy->nb_executor_types = 1;
     defaultPolicy->nb_workpile_types = 1;
+    defaultPolicy->nb_communicator_types = 0;
 
     // Default scheduler
     ocr_model_t * defaultScheduler =
@@ -248,6 +251,112 @@ ocr_model_policy_t * defaultOcrModelPolicy(size_t nb_schedulers, size_t nb_worke
     return defaultPolicy;
 }
 
+/**
+ * Habanero communication runtime policy has two schedulers, 
+ * one communication worker, one communication workpile and 
+ * a configurable number of computation workers, executors and workpiles
+ */
+ocr_model_policy_t * hcCommOcrModelPolicy(int * argc, char ** argv, size_t nbHardThreads) {
+
+    // policy
+    ocr_model_policy_t * hcCommPolicy = 
+             checked_malloc(hcCommPolicy, sizeof(ocr_model_policy_t));
+    hcCommPolicy->model.kind = OCR_POLICY_HC_COMM;
+    hcCommPolicy->model.nb_instances = 1;
+    hcCommPolicy->model.configuration = NULL;
+    hcCommPolicy->nb_scheduler_types = 1;
+    hcCommPolicy->nb_worker_types = 2;
+    hcCommPolicy->nb_executor_types = 1;
+    hcCommPolicy->nb_workpile_types = 2;
+    hcCommPolicy->nb_communicator_types = 1;
+
+    // scheduler
+    ocr_model_t * hcCommScheduler =
+            checked_malloc(hcCommScheduler, sizeof(ocr_model_t));
+    hcCommScheduler->kind = OCR_SCHEDULER_COMM;
+    hcCommScheduler->nb_instances = 1;
+    hcCommScheduler->configuration = NULL;
+    hcCommPolicy->schedulers = hcCommScheduler;
+
+    // worker
+    ocr_model_t * hcCommWorker =
+            checked_malloc(hcCommWorker, sizeof(ocr_model_t) * hcCommPolicy->nb_worker_types);
+    hcCommWorker[0].kind = OCR_WORKER_HC;
+    hcCommWorker[0].nb_instances = nbHardThreads-1; /* Computation workers */
+    hcCommWorker[0].configuration = NULL;
+    hcCommWorker[1].kind = OCR_WORKER_HC_COMM;
+    hcCommWorker[1].nb_instances = 1; /* Communication workers */
+    hcCommWorker[1].configuration = NULL;
+    hcCommPolicy->workers = hcCommWorker;
+
+    // executor
+    ocr_model_t * hcCommExecutor =
+            checked_malloc(hcCommExecutor, sizeof(ocr_model_t));
+    hcCommExecutor->kind = ocr_executor_default_kind;
+    hcCommExecutor->nb_instances = nbHardThreads;
+    hcCommExecutor->configuration = NULL;
+    hcCommPolicy->executors = hcCommExecutor;
+
+    // workpile
+    ocr_model_t * hcCommWorkpile =
+            checked_malloc(hcCommWorkpile, sizeof(ocr_model_t) * hcCommPolicy->nb_workpile_types);
+    hcCommWorkpile[0].kind = OCR_DEQUE;
+    hcCommWorkpile[0].nb_instances = nbHardThreads;
+    hcCommWorkpile[0].configuration = NULL;
+    hcCommWorkpile[1].kind = OCR_LIST;
+    hcCommWorkpile[1].nb_instances = 1;
+    hcCommWorkpile[1].configuration = NULL;
+    hcCommPolicy->workpiles = hcCommWorkpile;
+
+    // communicator
+    ocr_model_t * hcCommCommunicator =
+            checked_malloc(hcCommCommunicator, sizeof(ocr_model_t) * hcCommPolicy->nb_communicator_types);
+    hcCommCommunicator[0].kind = OCR_HC_MPI;
+    hcCommCommunicator[0].nb_instances = 1;
+    void ** mpi_args = (void **) checked_malloc(mpi_args, sizeof(void*)*2);
+    mpi_args[0] = (void*) argc;
+    mpi_args[1] = (void*) argv;
+    hcCommCommunicator[0].configuration = (void*)mpi_args;
+    hcCommPolicy->communicators = hcCommCommunicator;
+
+    // Defines how ocr modules are bound together
+    size_t nb_module_mappings = 4;
+    ocr_module_mapping_t * hcCommMapping =
+            checked_malloc(hcCommMapping, sizeof(ocr_module_mapping_t) * nb_module_mappings);
+    // Note: this doesn't bind modules magically. You need to have a mapping function defined
+    //       and set in the targeted implementation (see ocr_scheduler_hc implementation for reference).
+    //       These just make sure the mapping functions you have defined are called
+    hcCommMapping[0] = build_ocr_module_mapping(MANY_TO_ONE_MAPPING, OCR_WORKPILE, OCR_SCHEDULER);
+    hcCommMapping[1] = build_ocr_module_mapping(ONE_TO_ONE_MAPPING, OCR_WORKER, OCR_EXECUTOR);
+    hcCommMapping[2] = build_ocr_module_mapping(ONE_TO_MANY_MAPPING, OCR_SCHEDULER, OCR_WORKER);
+    hcCommMapping[3] = build_ocr_module_mapping(MANY_TO_ONE_MAPPING, OCR_MEMORY, OCR_ALLOCATOR);
+    /*TODO Provide mappings from communicators to scheduler */
+    hcCommPolicy->nb_mappings = nb_module_mappings;
+    hcCommPolicy->mappings = hcCommMapping;
+
+    // memory
+    ocr_model_t *hcCommMemory =
+            checked_malloc(hcCommMemory, sizeof(ocr_model_t));
+    hcCommMemory->configuration = NULL;
+    hcCommMemory->kind = OCR_LOWMEMORY_DEFAULT;
+    hcCommMemory->nb_instances = 1;
+    hcCommPolicy->numMemTypes = 1;
+    hcCommPolicy->memories = hcCommMemory;
+
+    // allocator
+    ocrAllocatorModel_t *hcCommAllocator =
+            checked_malloc(hcCommAllocator, sizeof(ocrAllocatorModel_t));
+    hcCommAllocator->model.configuration = NULL;
+    hcCommAllocator->model.kind = OCR_ALLOCATOR_DEFAULT;
+    hcCommAllocator->model.nb_instances = 1;
+    hcCommAllocator->sizeManaged = 64*1024*1024; // TODO: FIXME WITH SOME REAL SIZE!!!!
+
+    hcCommPolicy->numAllocTypes = 1;
+    hcCommPolicy->allocators = hcCommAllocator;
+
+    return hcCommPolicy;
+}
+
 void destructOcrModelPolicy(ocr_model_policy_t * model) {
     if (model->schedulers != NULL) {
         free(model->schedulers);
@@ -283,6 +392,7 @@ ocr_policy_domain_t * instantiateModel(ocr_model_policy_t * model) {
     int total_nb_workers = 0;
     int total_nb_executors = 0;
     int total_nb_workpiles = 0;
+    int total_nb_communicators = 0;
     u64 totalNumMemories = 0;
     u64 totalNumAllocators = 0;
     size_t j = 0;
@@ -298,6 +408,9 @@ ocr_policy_domain_t * instantiateModel(ocr_model_policy_t * model) {
     for(j=0; j < model->nb_workpile_types; j++) {
         total_nb_workpiles += model->workpiles[j].nb_instances;
     }
+    for(j=0; j < model->nb_communicator_types; j++) {
+        total_nb_communicators += model->communicators[j].nb_instances;
+    }
     for(j=0; j < model->numAllocTypes; ++j) {
         totalNumAllocators += model->allocators[j].model.nb_instances;
     }
@@ -308,7 +421,7 @@ ocr_policy_domain_t * instantiateModel(ocr_model_policy_t * model) {
     // Create an instance of the policy domain
     ocr_policy_domain_t * policyDomain = newPolicy(model->model.kind,
             total_nb_workpiles, total_nb_workers,
-            total_nb_executors, total_nb_schedulers);
+            total_nb_executors, total_nb_schedulers, total_nb_communicators);
 
     // Allocate memory for ocr components
     // Components instances are grouped into one big chunk of memory
@@ -318,6 +431,7 @@ ocr_policy_domain_t * instantiateModel(ocr_model_policy_t * model) {
     ocr_workpile_t ** all_workpiles = checked_malloc(all_workpiles, sizeof(ocr_workpile_t *) * total_nb_workpiles);
     ocrAllocator_t ** all_allocators = checked_malloc(all_allocators, sizeof(ocrAllocator_t*) * totalNumAllocators);
     ocrLowMemory_t ** all_memories = checked_malloc(all_memories, sizeof(ocrLowMemory_t*) * totalNumMemories);
+    ocr_communicator_t ** all_communicators = checked_malloc(all_communicators, sizeof(ocr_communicator_t *) * total_nb_communicators);
 
     // This is only needed because we want to be able to
     // write generic code to find instances' backing arrays
@@ -352,6 +466,7 @@ ocr_policy_domain_t * instantiateModel(ocr_model_policy_t * model) {
     int nb_worker_types = model->nb_worker_types;
     int nb_executor_types = model->nb_executor_types;
     int nb_scheduler_types = model->nb_scheduler_types;
+    int nb_communicator_types = model->nb_communicator_types;
     size_t type = 0;
     size_t instance = 0;
     size_t idx = 0;
@@ -418,6 +533,15 @@ ocr_policy_domain_t * instantiateModel(ocr_model_policy_t * model) {
         }
     }
 
+    // Create Communicators
+    for(type=0, idx=0; type < nb_communicator_types; type++) {
+        size_t nb_instances = model->communicators[type].nb_instances;
+        for(instance = 0; instance < nb_instances; instance++) {
+            all_communicators[idx] = newCommunicator(model->communicators[type].kind);
+            idx++;
+        }
+    }
+
     //
     // Configure instances of each ocr components
     //
@@ -469,9 +593,17 @@ ocr_policy_domain_t * instantiateModel(ocr_model_policy_t * model) {
         }
     }
 
-    policyDomain->create(policyDomain, NULL, all_schedulers,
+    for(type=0, idx=0; type < nb_communicator_types; type++) {
+        size_t nb_instances = model->communicators[type].nb_instances;
+        for(instance = 0; instance < nb_instances; instance++) {
+            all_communicators[idx]->configure(all_communicators[idx], model->communicators[type].configuration);
+            idx++;
+        }
+    }
+
+    policyDomain->create(policyDomain, model, all_schedulers,
                          all_workers, all_executors, all_workpiles,
-                         all_allocators, all_memories);
+                         all_allocators, all_memories, all_communicators);
 
     //
     // Bind instances of each ocr components through mapping functions

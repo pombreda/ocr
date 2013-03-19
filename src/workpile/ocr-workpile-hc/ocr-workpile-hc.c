@@ -64,11 +64,12 @@ static ocrGuid_t hc_workpile_steal ( ocr_workpile_t * base ) {
     return (ocrGuid_t) deque_steal(derived->deque);
 }
 
-ocr_workpile_t * hc_workpile_constructor(void) {
+ocr_workpile_t * hc_workpile_constructor(ocr_workpile_kind workpileType) {
     hc_workpile* derived = (hc_workpile*) checked_malloc(derived, sizeof(hc_workpile));
     ocr_workpile_t * base = (ocr_workpile_t *) derived;
     ocr_module_t * module_base = (ocr_module_t *) base;
     module_base->map_fct = NULL;
+    base->kind = workpileType;
     base->create = hc_workpile_create;
     base->destruct = hc_workpile_destruct;
     base->pop = hc_workpile_pop;
@@ -76,3 +77,56 @@ ocr_workpile_t * hc_workpile_constructor(void) {
     base->steal = hc_workpile_steal;
     return base;
 }
+
+/******************************************************/
+/* OCR-HC-COMM List WorkPool                          */
+/******************************************************/
+
+static void hc_comm_workpile_create ( ocr_workpile_t * base, void * configuration) {
+    hc_comm_workpile_t* derived = (hc_comm_workpile_t*) base;
+    derived->list = (list_t *) checked_malloc(derived->list, sizeof(list_t));
+    list_init(derived->list);
+}
+
+static void hc_comm_workpile_destruct ( ocr_workpile_t * base ) {
+    hc_comm_workpile_t* derived = (hc_comm_workpile_t*) base;
+    free(derived->list);
+    free(derived);
+}
+
+static void hc_comm_workpile_push (ocr_workpile_t * base, ocrGuid_t g ) {
+    hc_comm_workpile_t* derived = (hc_comm_workpile_t*) base;
+    list_push(derived->list, (void *)g);
+}
+
+static ocrGuid_t hc_comm_workpile_pop ( ocr_workpile_t * base ) {
+    hc_comm_workpile_t* derived = (hc_comm_workpile_t*) base;
+    return (ocrGuid_t) list_pop(derived->list);
+}
+
+static ocrGuid_t hc_comm_workpile_peek ( ocr_workpile_t * base ) {
+    hc_comm_workpile_t* derived = (hc_comm_workpile_t*) base;
+    return (ocrGuid_t) list_peek(derived->list);
+}
+
+static ocrGuid_t hc_comm_workpile_next ( ocr_workpile_t * base ) {
+    hc_comm_workpile_t* derived = (hc_comm_workpile_t*) base;
+    return (ocrGuid_t) list_next(derived->list);
+}
+
+ocr_workpile_t * hc_comm_workpile_constructor(ocr_workpile_kind workpileType) {
+    hc_comm_workpile_t* derived = (hc_comm_workpile_t*) checked_malloc(derived, sizeof(hc_comm_workpile_t));
+    derived->peek = hc_comm_workpile_peek;
+    derived->next = hc_comm_workpile_next;
+    ocr_workpile_t * base = (ocr_workpile_t *) derived;
+    ocr_module_t * module_base = (ocr_module_t *) base;
+    module_base->map_fct = NULL;
+    base->kind = workpileType;
+    base->create = hc_comm_workpile_create;
+    base->destruct = hc_comm_workpile_destruct;
+    base->pop = hc_comm_workpile_pop;
+    base->push = hc_comm_workpile_push;
+    base->steal = NULL;
+    return base;
+}
+

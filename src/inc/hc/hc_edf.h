@@ -131,4 +131,22 @@ void hc_task_add_dependence ( ocr_task_t* base, ocr_event_t* dep, size_t index )
 u64 hc_task_add_acquired(ocr_task_t* base, u64 edtId, ocrGuid_t db);
 void hc_task_remove_acquired(ocr_task_t* base, ocrGuid_t db, u64 dbId);
 
+/******************************************************/
+/* OCR-HC-COMM Task Factory                           */
+/******************************************************/
+
+typedef struct hc_comm_task_factory {
+    ocr_task_factory base_factory;
+    ocr_communicator_t * communicator;
+} hc_comm_task_factory;
+
+ocr_task_factory * hc_comm_task_factory_constructor(ocr_communicator_t* communicator);
+ocrGuid_t hc_comm_task_factory_create ( struct ocr_task_factory_struct* factory, ocrEdt_t fctPtr, u32 paramc, u64 * params, void** paramv, size_t dep_l_size);
+
+typedef struct hc_comm_task_struct_t {
+    hc_task_t hc_base;
+    ocr_comm_task_status status;
+    ocr_communicator_t * communicator;
+} hc_comm_task_t;
+
 #endif

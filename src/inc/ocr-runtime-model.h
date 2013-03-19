@@ -54,6 +54,7 @@ typedef struct {
     size_t nb_worker_types;
     size_t nb_executor_types;
     size_t nb_workpile_types;
+    size_t nb_communicator_types;
     size_t nb_mappings;
     u64 numAllocTypes;
     u64 numMemTypes;
@@ -63,12 +64,14 @@ typedef struct {
     ocr_model_t * workpiles;
     ocrAllocatorModel_t * allocators;
     ocr_model_t * memories;
+    ocr_model_t * communicators;
     ocr_module_mapping_t * mappings;
 } ocr_model_policy_t;
 
 ocr_model_policy_t * defaultOcrModelPolicy(size_t nb_schedulers, size_t nb_workers,
                                            size_t nb_executors, size_t nb_workpiles);
 
+ocr_model_policy_t * hcCommOcrModelPolicy(int * argc, char ** argv, size_t nbHardThreads);
 
 ocr_policy_domain_t * instantiateModel(ocr_model_policy_t * model);
 

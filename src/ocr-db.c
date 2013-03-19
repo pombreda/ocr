@@ -60,7 +60,34 @@ u8 ocrDbCreate(ocrGuid_t *db, void** addr, u64 len, u16 flags,
 
     ocr_policy_domain_t *policy = (ocr_policy_domain_t*)deguidify(worker->getCurrentPolicyDomain(worker));
 
-    createdDb->create(createdDb, policy->getAllocator(policy, location), len, flags, NULL);
+    ocrLocation_t loc;
+    if (location == NULL) {
+        location = &loc;
+        OCR_LOCATION_SET_DEFAULT(location);
+    }
+    createdDb->create(createdDb, policy->getAllocator(policy, location), len, location, flags, NULL);
+
+    *addr = createdDb->acquire(createdDb, worker->getCurrentEDT(worker), false);
+    if(*addr == NULL) return ENOMEM;
+    *db = guidify(createdDb);
+    return 0;
+}
+
+u8 ocrRemoteDbCreate(ocrGuid_t *db, void** addr, u64 len, u16 flags,
+                     ocrLocation_t *location, ocrInDbAllocator_t allocator) {
+
+    // TODO: Currently location and allocator are ignored
+    ocrDataBlock_t *createdDb = newDataBlock(OCR_DATABLOCK_DEFAULT);
+
+    // TODO: I need to get the current policy to figure out my allocator.
+    // Replace with allocator that is gotten from policy
+
+    ocrGuid_t workerGuid = ocr_get_current_worker_guid();
+    ocr_worker_t *worker = (ocr_worker_t*)deguidify(workerGuid);
+
+    ocr_policy_domain_t *policy = (ocr_policy_domain_t*)deguidify(worker->getCurrentPolicyDomain(worker));
+
+    createdDb->create(createdDb, policy->getAllocator(policy, location), len, location, flags, NULL);
 
     *addr = createdDb->acquire(createdDb, worker->getCurrentEDT(worker), false);
     if(*addr == NULL) return ENOMEM;

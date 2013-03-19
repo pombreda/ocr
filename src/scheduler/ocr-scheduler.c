@@ -39,7 +39,9 @@ extern ocr_scheduler_t * hc_scheduler_constructor();
 ocr_scheduler_t * newScheduler(ocr_scheduler_kind schedulerType) {
     switch(schedulerType) {
     case OCR_SCHEDULER_WST:
-        return hc_scheduler_constructor();
+        return hc_scheduler_constructor(schedulerType);
+    case OCR_SCHEDULER_COMM:
+        return hc_comm_scheduler_constructor(schedulerType);
     default:
         assert(false && "Unrecognized scheduler kind");
         break;

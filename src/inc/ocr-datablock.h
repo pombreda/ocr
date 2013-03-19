@@ -60,11 +60,15 @@ typedef struct _ocrDataBlock_t {
      * @param self          Pointer for this data-block
      * @param allocator     Allocator from where this data-block was created (its GUID)
      * @param size          Size in bytes of the data-block
+     * @param location      Location of the data-block
      * @param flags         Data-block flags (unused)
      */
     void (*create)(struct _ocrDataBlock_t *self,
                    ocrGuid_t allocator,
-                   u64 size, u16 flags, void* configuration);
+                   u64 size,
+                   ocrLocation_t * location, 
+                   u16 flags, 
+                   void* configuration);
 
     /**
      * @brief Destroys a data-block
@@ -119,6 +123,16 @@ typedef struct _ocrDataBlock_t {
      * @return 0 on success and an error code on failure (see ocr-db.h)
      */
     u8 (*free)(struct _ocrDataBlock_t *self, ocrGuid_t edt);
+
+    /**
+     * @brief Gets the size of the datablock
+     */
+    u8 (*getSize)(struct _ocrDataBlock_t *self, u64 * sz);
+
+    /**
+     * @brief Gets the location of the datablock
+     */
+    u8 (*getLocation)(struct _ocrDataBlock_t *self, ocrLocation_t * loc);
 } ocrDataBlock_t;
 
 /**

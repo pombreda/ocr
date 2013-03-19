@@ -38,7 +38,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ocr-runtime.h"
 #include "deque.h"
+#include "list.h"
 #include "hc_edf.h"
+
+/******************************************************/
+/* OCR-HC-COMM POLICY DOMAIN                          */
+/******************************************************/
+
+typedef struct hc_comm_policy_domain_struct {
+    ocr_policy_domain_t base;
+    volatile int isCommunicationReady;
+} hc_comm_policy_domain_t;
 
 /******************************************************/
 /* OCR-HC WORKER                                      */
@@ -58,8 +68,8 @@ typedef struct {
     ocrGuid_t currentEDT_guid;
 } hc_worker_t;
 
-ocr_worker_t* hc_worker_constructor(void);
-
+ocr_worker_t* hc_worker_constructor(ocr_worker_kind workerType);
+ocr_worker_t* hc_comm_worker_constructor(ocr_worker_kind workerType);
 
 /******************************************************/
 /* OCR-HC WorkPool                                    */
@@ -70,7 +80,29 @@ typedef struct hc_workpile {
     deque_t * deque;
 } hc_workpile;
 
-ocr_workpile_t * hc_workpile_constructor(void);
+ocr_workpile_t * hc_workpile_constructor(ocr_workpile_kind workpileType);
+
+/******************************************************/
+/* OCR-HC-COMM List WorkPool                          */
+/******************************************************/
+
+typedef ocrGuid_t (*workpile_peek_fct) ( struct ocr_workpile_struct* base );
+typedef ocrGuid_t (*workpile_next_fct) ( struct ocr_workpile_struct* base );
+
+typedef struct hc_comm_workpile_struct {
+    ocr_workpile_t base;
+    list_t * list;
+    /*! \brief Interface to peek at next element without advancing
+     *  \return GUID of the task from this task pool
+     */
+    workpile_peek_fct peek;
+    /*! \brief Interface to get next element by advancing
+     *  \return GUID of the task from this task pool
+     */
+    workpile_next_fct next;
+} hc_comm_workpile_t;
+
+ocr_workpile_t * hc_comm_workpile_constructor(ocr_workpile_kind workpileType);
 
 
 /******************************************************/
@@ -88,11 +120,32 @@ typedef struct {
 
 } hc_scheduler_t;
 
-ocr_scheduler_t * hc_scheduler_constructor(void);
+ocr_scheduler_t * hc_scheduler_constructor(ocr_scheduler_kind schedulerType);
+
+/******************************************************/
+/* OCR-HC-COMM SCHEDULER                              */
+/******************************************************/
+
+typedef ocr_workpile_t * (*scheduler_comm_push_mapping_fct) (struct ocr_scheduler_struct*, struct ocr_worker_struct*);
+typedef ocr_workpile_t * (*scheduler_comm_pop_mapping_fct) (struct ocr_scheduler_struct*, struct ocr_worker_struct*);
+
+typedef struct {
+    hc_scheduler_t hc_base;
+    scheduler_comm_push_mapping_fct comm_push_mapping;
+    scheduler_comm_pop_mapping_fct comm_pop_mapping;
+    ocr_workpile_t * comm_pool; /* TODO: Assumes one communication worker. Need to extend it */
+} hc_comm_scheduler_t;
+
+ocr_scheduler_t * hc_comm_scheduler_constructor(ocr_scheduler_kind schedulerType);
 
 /**
  * The computation worker routine that asks work to the scheduler
  */
 extern void * worker_computation_routine(void * arg);
+
+/**
+ * The communication worker routine that asks work to the scheduler
+ */
+extern void * worker_communication_routine(void * arg);
 
 #endif /* HC_H_ */

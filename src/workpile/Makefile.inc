@@ -17,6 +17,7 @@ libocr_la_LIBADD += libocr_workpile_hc.la
 
 libocr_workpile_hc_la_SOURCES = \
 $(OCR_SRC_WORKPILE)/ocr-workpile-hc/ocr-workpile-hc.c \
-$(OCR_SRC_WORKPILE)/ocr-workpile-hc/deque.c
+$(OCR_SRC_WORKPILE)/ocr-workpile-hc/deque.c \
+$(OCR_SRC_WORKPILE)/ocr-workpile-hc/list.c
 
 libocr_workpile_hc_la_CFLAGS = $(AM_CFLAGS)

@@ -102,7 +102,7 @@ void hc_ocr_module_map_scheduler_to_worker(void * self_module, ocr_module_kind k
 /**
  * Builds an instance of a HC worker
  */
-ocr_worker_t* hc_worker_constructor () {
+ocr_worker_t* hc_worker_constructor (ocr_worker_kind workerType) {
     hc_worker_t * worker = checked_malloc(worker, sizeof(hc_worker_t));
     worker->id = -1;
     worker->run = false;
@@ -111,6 +111,7 @@ ocr_worker_t* hc_worker_constructor () {
     ocr_worker_t * base = (ocr_worker_t *) worker;
     ocr_module_t* module_base = (ocr_module_t*) base;
     module_base->map_fct = hc_ocr_module_map_scheduler_to_worker;
+    base->kind = workerType;
     base->scheduler = NULL;
     base->routine = worker_computation_routine;
     base->create = hc_worker_create;
@@ -155,3 +156,68 @@ void * worker_computation_routine(void * arg) {
     }
     return NULL;
 }
+
+/******************************************************/
+/* OCR-HC-COMM WORKER                                 */
+/******************************************************/
+
+void * worker_communication_routine(void * arg) {
+    int i;
+    ocr_worker_t * worker = (ocr_worker_t *) arg;
+
+    /* associate current thread with the worker */
+    associate_executor_and_worker(worker);
+
+    /* start the communication runtime */
+    ocr_policy_domain_t *policy = (ocr_policy_domain_t*)deguidify(worker->getCurrentPolicyDomain(worker));
+    for (i = 0; i < policy->nb_communicators; i++)
+        policy->communicators[i]->start(policy->communicators[i]);
+    hc_comm_policy_domain_t * derived = (hc_comm_policy_domain_t*) policy;
+    derived->isCommunicationReady = 1;
+
+    ocrGuid_t workerGuid = get_worker_guid(worker);
+    ocr_scheduler_t * scheduler = get_worker_scheduler(worker);
+    log_worker(INFO, "Starting communication scheduler routine of worker %d\n", get_worker_id(worker));
+    while(worker->is_running(worker)) {
+        ocrGuid_t taskGuid = scheduler->take(scheduler, workerGuid);
+        if (taskGuid != NULL_GUID) {
+            ocr_task_t *curr_task = (ocr_task_t*) deguidify(taskGuid);
+            worker->setCurrentEDT(worker,taskGuid);
+            curr_task->fct_ptrs->execute(curr_task);
+            worker->setCurrentEDT(worker, NULL_GUID);
+        }
+    }
+
+    /* stop the communication runtime */
+    //for (i = 0; i < policy->nb_communicators; i++)
+    //    policy->communicators[i]->stop(policy->communicators[i]);
+
+    return NULL;
+}
+
+/**
+ * Builds an instance of a HC Comm worker
+ */
+ocr_worker_t* hc_comm_worker_constructor (ocr_worker_kind workerType) {
+    hc_worker_t * worker = checked_malloc(worker, sizeof(hc_worker_t));
+    worker->id = -1;
+    worker->run = false;
+    worker->guid = guidify((void*)worker);
+    worker->currentEDT_guid = NULL_GUID;
+    ocr_worker_t * base = (ocr_worker_t *) worker;
+    ocr_module_t* module_base = (ocr_module_t*) base;
+    module_base->map_fct = hc_ocr_module_map_scheduler_to_worker;
+    base->kind = workerType;
+    base->scheduler = NULL;
+    base->routine = worker_communication_routine;
+    base->create = hc_worker_create;
+    base->destruct = hc_worker_destruct;
+    base->start = hc_start_worker;
+    base->stop = hc_stop_worker;
+    base->is_running = hc_is_running_worker;
+    base->getCurrentPolicyDomain = hc_getCurrentPolicyDomain;
+    base->getCurrentEDT = hc_getCurrentEDT;
+    base->setCurrentEDT = hc_setCurrentEDT;
+    return base;
+}
+

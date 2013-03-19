@@ -234,12 +234,18 @@ typedef struct ocr_task_fcts_struct_t {
     task_add_dependence_fct add_dependence;
 } ocr_task_fcts_t;
 
+typedef enum ocr_task_kind_enum {
+    OCR_TASK_REGULAR = 1,
+    OCR_TASK_COMM
+} ocr_task_kind;
+
 /*! \brief Abstract class to represent OCR tasks.
  *
  *  This class provides the interface for the underlying implementation to conform.
  *  OCR tasks can be executed and can have their synchronization frontier furthered by Events.
  */
 typedef struct ocr_task_struct_t {
+    ocr_task_kind kind;
     u32 paramc;
     u64 * params;
     void ** paramv;

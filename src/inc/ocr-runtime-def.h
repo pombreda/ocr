@@ -41,7 +41,7 @@ typedef enum ocr_module_kind_enum {
     OCR_MEMORY = 5,
     OCR_POLICY = 6,
     OCR_EDT = 7,
-    OCR_EVENT = 8
+    OCR_EVENT = 8,
 } ocr_module_kind;
 
 

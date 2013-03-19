@@ -29,19 +29,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef __OCR_RUNTIME_H_
-#define __OCR_RUNTIME_H_
+#ifndef LIST_H_
+#define LIST_H_
 
-#include "ocr-guid.h"
-#include "ocr-utils.h"
-#include "ocr-executor.h"
-#include "ocr-low-workers.h"
-#include "ocr-machine.h"
-#include "ocr-scheduler.h"
-#include "ocr-policy.h"
-#include "ocr-task-event.h"
-#include "ocr-runtime-model.h"
-#include "ocr-communication.h"
+typedef struct list_node {
+    void * data;
+    struct list_node * next;
+} list_node_t;
 
+typedef struct list {
+	volatile list_node_t * head;
+	list_node_t * current;
+	list_node_t * last_peeked;
+} list_t;
 
-#endif /* __OCR_RUNTIME_H_ */
+void list_init(list_t * lst);
+void list_push(list_t* lst, void* entry);
+void * list_pop(list_t * lst);
+void * list_peek(list_t * lst);
+void * list_next(list_t * lst);
+
+#endif /* LIST_H_ */

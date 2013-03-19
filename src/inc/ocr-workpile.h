@@ -37,6 +37,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 /****************************************************/
+/* OCR WORKPILE KINDS                               */
+/****************************************************/
+
+typedef enum ocr_workpile_kind_enum {
+    OCR_DEQUE = 1,
+    OCR_LIST
+} ocr_workpile_kind;
+
+/****************************************************/
 /* OCR WORKPILE API                                 */
 /****************************************************/
 
@@ -57,6 +66,9 @@ typedef ocrGuid_t (*workpile_steal_fct) ( struct ocr_workpile_struct* base );
 //TODO We may be influenced by how STL resolves this issue as in push_back, push_front, pop_back, pop_front
 typedef struct ocr_workpile_struct {
     ocr_module_t module;
+
+    /* Type of workpile */
+    ocr_workpile_kind kind;
 
     /*! \brief Creates an concrete implementation of a WorkPool
      *  \return Pointer to the concrete WorkPool that is created by this call
@@ -82,16 +94,13 @@ typedef struct ocr_workpile_struct {
 
 
 /****************************************************/
-/* OCR WORKPILE KINDS AND CONSTRUCTORS              */
+/* OCR WORKPILE CONSTRUCTORS                        */
 /****************************************************/
-
-typedef enum ocr_workpile_kind_enum {
-    OCR_DEQUE = 1
-} ocr_workpile_kind;
 
 ocr_workpile_t * newWorkpile(ocr_workpile_kind workpileType);
 
-ocr_workpile_t * hc_workpile_constructor(void);
+extern ocr_workpile_t * hc_workpile_constructor(ocr_workpile_kind workpileType);
+extern ocr_workpile_t * hc_comm_workpile_constructor(ocr_workpile_kind workpileType);
 
 
 /****************************************************/

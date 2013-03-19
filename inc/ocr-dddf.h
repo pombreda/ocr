@@ -29,19 +29,27 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef __OCR_RUNTIME_H_
-#define __OCR_RUNTIME_H_
+#ifndef __OCR_D3F_H_
+#define __OCR_D3F_H_
 
-#include "ocr-guid.h"
-#include "ocr-utils.h"
-#include "ocr-executor.h"
-#include "ocr-low-workers.h"
-#include "ocr-machine.h"
-#include "ocr-scheduler.h"
-#include "ocr-policy.h"
-#include "ocr-task-event.h"
-#include "ocr-runtime-model.h"
-#include "ocr-communication.h"
+#include "ocr.h"
+
+/* Initializes the DDDF model. (NOTE: This Has to be called in place of OCR_INIT) */
+#define OCR_DDDF_INIT(argc, argv, ...)					\
+  ({ocrEdt_t _fn_array[] = {__VA_ARGS__}; ocrInit(argc, argv, sizeof(_fn_array)/sizeof(_fn_array[0]), _fn_array); ocrD3FModelInit();})
+
+/* Adds a task dependence on a distributed DDF. */
+#define OCR_DDDF_ADD_DEPENDENCE(id, edt, slot) ocrD3FAddDependence(id, DDDF_HOME(id), edt, slot)
+
+/* Finishes the DDDF runtime. There need not be any other ocrCleanup or ocrFinish in the user code. */
+#define OCR_DDDF_FINALIZE(id) ocrD3FModelFinalize(id, DDDF_HOME(id))
 
 
-#endif /* __OCR_RUNTIME_H_ */
+u8 ocrD3FModelInit(void);
+
+u8 ocrD3FAddDependence(int id, int home, ocrGuid_t edt, u32 slot);
+
+u8 ocrD3FModelFinalize(int id, int home);
+
+
+#endif /* __OCR_D3F_H_ */

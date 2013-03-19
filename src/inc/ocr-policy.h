@@ -40,7 +40,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ocr-low-memory.h"
 #include "ocr-datablock.h"
 #include "ocr-sync.h"
+#include "ocr-communication.h"
 
+/******************************************************/
+/* OCR POLICY DOMAIN KINDS                            */
+/******************************************************/
+
+typedef enum ocr_policy_kind_enum {
+    OCR_POLICY_HC = 1,
+    OCR_POLICY_HC_COMM
+} ocr_policy_kind;
 
 /******************************************************/
 /* OCR POLICY DOMAIN INTERFACE                        */
@@ -52,7 +61,7 @@ struct ocr_policy_domain_struct;
 typedef void (*ocr_policy_create_fct) (struct ocr_policy_domain_struct * policy, void * configuration,
                                        ocr_scheduler_t ** schedulers, ocr_worker_t ** workers,
                                        ocr_executor_t ** executors, ocr_workpile_t ** workpiles,
-                                       ocrAllocator_t ** allocators, ocrLowMemory_t ** memories);
+                                       ocrAllocator_t ** allocators, ocrLowMemory_t ** memories, ocr_communicator_t ** communicators);
 typedef void (*ocr_policy_start_fct) (struct ocr_policy_domain_struct * policy);
 typedef void (*ocr_policy_finish_fct) (struct ocr_policy_domain_struct * policy);
 typedef void (*ocr_policy_stop_fct) (struct ocr_policy_domain_struct * policy);
@@ -60,12 +69,14 @@ typedef void (*ocr_policy_destruct_fct) (struct ocr_policy_domain_struct * polic
 typedef ocrGuid_t (*ocr_policy_getAllocator)(struct ocr_policy_domain_struct *policy, ocrLocation_t* location);
 
 typedef struct ocr_policy_domain_struct {
+    ocr_policy_kind kind;
     int nb_schedulers;
     int nb_workers;
     int nb_executors;
     int nb_workpiles;
     int nb_allocators;
     int nb_memories;
+    int nb_communicators;
 
     ocr_scheduler_t ** schedulers;
     ocr_worker_t ** workers;
@@ -73,6 +84,7 @@ typedef struct ocr_policy_domain_struct {
     ocr_workpile_t ** workpiles;
     ocrAllocator_t ** allocators;
     ocrLowMemory_t ** memories;
+    ocr_communicator_t ** communicators;
 
     ocr_policy_create_fct create;
     ocr_policy_start_fct start;
@@ -89,19 +101,27 @@ typedef struct ocr_policy_domain_struct {
 void ocr_policy_domain_destruct(ocr_policy_domain_t * policy);
 
 /******************************************************/
-/* OCR POLICY DOMAIN KINDS AND CONSTRUCTORS           */
+/* OCR POLICY DOMAIN CONSTRUCTORS                     */
 /******************************************************/
-
-typedef enum ocr_policy_kind_enum {
-    OCR_POLICY_HC = 1
-} ocr_policy_kind;
 
 ocr_policy_domain_t * newPolicy(ocr_policy_kind policyType,
         size_t nb_workpiles,
         size_t nb_workers,
         size_t nb_executors,
-        size_t nb_scheduler);
+        size_t nb_scheduler,
+        size_t nb_communicators);
 
- ocr_policy_domain_t * hc_policy_domain_constructor();
+ocr_policy_domain_t * hc_policy_domain_constructor(ocr_policy_kind policyType,
+        size_t nb_workpiles,
+        size_t nb_workers,
+        size_t nb_executors,
+        size_t nb_schedulers);
+
+ocr_policy_domain_t * hc_comm_policy_domain_constructor(ocr_policy_kind policyType,
+        size_t nb_workpiles,
+        size_t nb_workers,
+        size_t nb_executors,
+        size_t nb_schedulers,
+        size_t nb_communicators);
 
 #endif /* OCR_POLICY_H_ */

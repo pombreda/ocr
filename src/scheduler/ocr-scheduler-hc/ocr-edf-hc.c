@@ -58,7 +58,7 @@ void hc_event_factory_destructor ( struct ocr_event_factory_struct* base ) {
     free(derived);
 }
 
-ocrGuid_t hc_event_factory_create ( struct ocr_event_factory_struct* factory, ocrEventTypes_t eventType, bool takesArg ) {
+ocrGuid_t hc_event_factory_create ( struct ocr_event_factory_struct* factory, ocrEventTypes_t eventType, bool takesArg) {
     //TODO LIMITATION Support other events types
     if (eventType != OCR_EVENT_STICKY_T) {
         assert("LIMITATION: Only sticky events are supported" && false);
@@ -254,6 +254,7 @@ static void hc_task_construct_internal (hc_task_t* derived, ocrEdt_t funcPtr,
     derived->depv = NULL;
     derived->p_function = funcPtr;
     ocr_task_t* base = (ocr_task_t*) derived;
+    base->kind = OCR_TASK_REGULAR;
     base->paramc = paramc;
     base->params = params;
     base->paramv = paramv;
@@ -367,3 +368,48 @@ void hc_task_add_dependence ( ocr_task_t* base, ocr_event_t* dep, size_t index )
     derived->awaitList->array[index] = dep;
     derived->nbdeps++;
 }
+
+/******************************************************/
+/* OCR-HC-COMM Task Factory                           */
+/******************************************************/
+
+ocr_task_factory * hc_comm_task_factory_constructor(ocr_communicator_t* communicator) {
+    hc_comm_task_factory* derived = (hc_comm_task_factory*) checked_malloc(derived, sizeof(hc_comm_task_factory));
+    derived->communicator = communicator;
+
+    ocr_task_factory* base = (ocr_task_factory*) derived;
+    base->create = hc_comm_task_factory_create;
+    base->destruct =  hc_task_factory_destructor;
+
+    // initialize singleton instance that carries hc implementation function pointers
+    base->task_fct_ptrs = (ocr_task_fcts_t *) checked_malloc(base->task_fct_ptrs, sizeof(ocr_task_fcts_t));
+    base->task_fct_ptrs->destruct = hc_task_destruct;
+    base->task_fct_ptrs->iterate_waiting_frontier = hc_task_iterate_waiting_frontier;
+    base->task_fct_ptrs->execute = hc_task_execute;
+    base->task_fct_ptrs->schedule = hc_task_try_schedule;
+    base->task_fct_ptrs->add_dependence = hc_task_add_dependence;
+    return base;
+}
+
+ocrGuid_t hc_comm_task_factory_create ( struct ocr_task_factory_struct* factory, ocrEdt_t fctPtr, u32 paramc, u64 * params, void** paramv, size_t dep_l_size) {
+    hc_comm_task_t* comm_edt = (hc_comm_task_t*)checked_malloc(comm_edt, sizeof(hc_comm_task_t));
+    comm_edt->status = OCR_COMM_TASK_STATUS_UNKNOWN;
+    hc_comm_task_factory * derived_factory = (hc_comm_task_factory *)factory;
+    comm_edt->communicator = derived_factory->communicator;
+
+    hc_task_t* hc_edt = (hc_task_t*)comm_edt;
+    hc_edt->awaitList = hc_await_list_constructor(dep_l_size);
+    hc_edt->nbdeps = 0;
+    hc_edt->depv = NULL;
+    hc_edt->p_function = fctPtr;
+
+    ocr_task_t* base = (ocr_task_t*) comm_edt;
+    base->kind = OCR_TASK_COMM;
+    base->paramc = paramc;
+    base->params = params;
+    base->paramv = paramv;
+    base->fct_ptrs = factory->task_fct_ptrs;
+    return guidify(base);
+}
+
+

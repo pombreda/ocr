@@ -29,19 +29,39 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef __OCR_RUNTIME_H_
-#define __OCR_RUNTIME_H_
+#ifndef OCR_MPI_H_
+#define OCR_MPI_H_
 
-#include "ocr-guid.h"
-#include "ocr-utils.h"
-#include "ocr-executor.h"
-#include "ocr-low-workers.h"
-#include "ocr-machine.h"
-#include "ocr-scheduler.h"
-#include "ocr-policy.h"
-#include "ocr-task-event.h"
-#include "ocr-runtime-model.h"
 #include "ocr-communication.h"
 
+/****************************************************/
+/* OCR MPI COMMUNICATOR API                         */
+/****************************************************/
 
-#endif /* __OCR_RUNTIME_H_ */
+struct ocr_mpi_communicator_struct;
+
+typedef void (*ocr_mpi_listener_callback_fct) (struct ocr_mpi_communicator_struct * comm, void *buf, size_t sz, int rproc, int tag);
+typedef ocrGuid_t (*ocr_mpi_any_source_listener_fct) (struct ocr_mpi_communicator_struct *communicator, void *buf, size_t size, int tag, ocr_mpi_listener_callback_fct callback);
+typedef ocrGuid_t (*ocr_mpi_db_push_on_satisfy_fct) (struct ocr_mpi_communicator_struct *communicator, int tag, int rproc);
+typedef ocrGuid_t (*ocr_mpi_db_pull_then_satisfy_fct) (struct ocr_mpi_communicator_struct *communicator, void *buf, size_t size, int rproc, int tag, ocrGuid_t completionEvt);
+
+typedef struct ocr_mpi_communicator_struct {
+    ocr_communicator_t base;
+
+    int rank, size;/* MPI rank and size */
+
+    /* MPI Init arguments */
+    int *argc;
+    char **argv;
+
+    /* MPI task factory */
+    ocr_task_factory *task_factory;
+
+    /* MPI communication task create functions */
+    ocr_mpi_any_source_listener_fct create_any_source_listener;
+    ocr_mpi_db_push_on_satisfy_fct create_db_push_on_satisfy;
+    ocr_mpi_db_pull_then_satisfy_fct create_db_pull_then_satisfy;
+} ocr_mpi_communicator_t;
+
+#endif /* OCR_MPI_H_ */
+
