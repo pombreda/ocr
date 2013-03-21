@@ -5,10 +5,20 @@
 
 #define DDDF_HOME(id) column_distribution(id, num_ranks, n_tiles_width, num_tiles_in_outer_width, tile_id_offset)
 
-#define TILE_ID_START(i,j) ((((i * n_tiles_width) + j) * 3) + tile_id_offset)
-#define DIAG_DEP(i,j) (TILE_ID_START(i-1,j-1))
-#define ROW_DEP(i,j)  (TILE_ID_START(i-1,j)+1)
-#define COL_DEP(i,j)  (TILE_ID_START(i,j-1)+2)
+#define TILE_ID_START(i,j) tile_id_start(i, j, n_tiles_width, tile_id_offset)
+
+int tile_id_start(int i, int j, int n_tiles_width, int tile_id_offset) {
+	int id = (((i * n_tiles_width) + j) * 3) + tile_id_offset;
+	//printf("TILE(%d, %d) ID %d\n", i, j, id);
+	return id;
+}
+
+#define DIAG_DEP(i,j) diag_dep_fn(i, j, n_tiles_width, tile_id_offset)
+#define ROW_DEP(i,j) row_dep_fn(i, j, n_tiles_width, tile_id_offset)
+#define COL_DEP(i,j) col_dep_fn(i, j, n_tiles_width, tile_id_offset)
+int diag_dep_fn(int i, int j , int n_tiles_width, int tile_id_offset) { return (TILE_ID_START(i-1,j-1)); }
+int row_dep_fn(int i, int j, int n_tiles_width, int tile_id_offset)  { return (TILE_ID_START(i-1,j)+1); }
+int col_dep_fn(int i, int j, int n_tiles_width, int tile_id_offset)  { return (TILE_ID_START(i,j-1)+2); }
 
 
 #define GAP_PENALTY -1
@@ -74,7 +84,9 @@ signed char* read_file( FILE* file, size_t* n_chars ) {
 }
 
 int column_distribution(int id, int num_ranks, int n_tiles_width, int num_tiles_in_outer_width, int tile_id_offset) {
-    return ((((id - tile_id_offset) / 3) % n_tiles_width) % num_tiles_in_outer_width) % num_ranks;
+    int rank = ((((id - tile_id_offset) / 3) % n_tiles_width) % num_tiles_in_outer_width) % num_ranks;
+	//printf("id: %d rank %d\n", id, rank);
+	return rank;
 }
 
 u8 smith_waterman_kernel ( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
@@ -100,7 +112,8 @@ u8 smith_waterman_kernel ( u32 paramc, u64 * params, void* paramv[], u32 depc, o
 
 	int num_tiles_in_outer_width = outer_tile_width / tile_width;
 	int tile_id_offset = num_ranks + 1;
-
+	printf("Running tile (%d, %d) on rank %d\n", i, j, rank);
+/*
 	int * left_tile_right_column;
 	int * above_tile_bottom_row;
 	int * diagonal_tile_bottom_right;
@@ -121,11 +134,12 @@ u8 smith_waterman_kernel ( u32 paramc, u64 * params, void* paramv[], u32 depc, o
 			above_tile_bottom_row = (int *) depv[0].ptr;
 			diagonal_tile_bottom_right = &(diags_initial_col[i]);
 		} else {
-			diagonal_tile_bottom_right = (int *) depv[0].ptr;
-			above_tile_bottom_row = (int *) depv[1].ptr;
-			left_tile_right_column = (int *) depv[2].ptr;
 		}
 	}
+*/
+	int * diagonal_tile_bottom_right = (int *) depv[0].ptr;
+	int * above_tile_bottom_row = (int *) depv[1].ptr;
+	int * left_tile_right_column = (int *) depv[2].ptr;
 
     int  * curr_tile_tmp = (int*)malloc(sizeof(int)*(1+tile_width)*(1+tile_height));
     int ** curr_tile = (int**)malloc(sizeof(int*)*(1+tile_height));
@@ -187,8 +201,8 @@ u8 smith_waterman_kernel ( u32 paramc, u64 * params, void* paramv[], u32 depc, o
 
     free(curr_tile);
     free(curr_tile_tmp);
-    if ( i == n_tiles_height && j == n_tiles_width ) {
-        fprintf(stdout, "score: %d\n", curr_bottom_row[tile_width-1]);
+    if ( (i == (n_tiles_height-1)) && (j == (n_tiles_width-1))) {
+//        fprintf(stdout, "score: %d\n", curr_bottom_row[tile_width-1]);
 //        ocrFinish();
     }
 }
@@ -206,11 +220,74 @@ u8 smith_waterman_init (signed char * string1, signed char * string2,
 	int n_tiles_height = n_char_in_file_2/tile_height;
 	int num_tiles_in_outer_width = outer_tile_width / tile_width;
 
-	int ** data_initial_row = (int**) malloc (sizeof(int*) * n_tiles_width);
+/*	int ** data_initial_row = (int**) malloc (sizeof(int*) * n_tiles_width);
 	int ** data_initial_col = (int**) malloc (sizeof(int*) * n_tiles_height);
 	int * diags_initial_row = (int*) malloc (sizeof(int) * (n_tiles_width+1));
 	int * diags_initial_col = (int*) malloc (sizeof(int) * (n_tiles_height+1));
+*/
+	ocrGuid_t * data_initial_row = (ocrGuid_t*) malloc (sizeof(ocrGuid_t) * n_tiles_width+1);
+	ocrGuid_t * data_initial_col = (ocrGuid_t*) malloc (sizeof(ocrGuid_t) * n_tiles_height+1);
+	ocrGuid_t * diags_initial_row = (ocrGuid_t*) malloc (sizeof(ocrGuid_t) * (n_tiles_width+1));
+	ocrGuid_t * diags_initial_col = (ocrGuid_t*) malloc (sizeof(ocrGuid_t) * (n_tiles_height+1));
+	for (i = 0; i < n_tiles_width+1; i++) {
+        ocrEventCreate(&(data_initial_row[i]), OCR_EVENT_STICKY_T, true);
+        ocrEventCreate(&(diags_initial_row[i]), OCR_EVENT_STICKY_T, true);
+	}
 
+	for (i = 0; i < n_tiles_height+1; i++) {
+        ocrEventCreate(&(data_initial_col[i]), OCR_EVENT_STICKY_T, true);
+        ocrEventCreate(&(diags_initial_col[i]), OCR_EVENT_STICKY_T, true);
+	}
+
+    ocrGuid_t db_guid_0_0_br;
+    void* db_guid_0_0_br_data;
+    ocrDbCreate( &db_guid_0_0_br, &db_guid_0_0_br_data, sizeof(int), FLAGS, NULL, NO_ALLOC );
+    int* allocated = (int*)db_guid_0_0_br_data;
+    allocated[0] = 0;
+    ocrEventSatisfy(diags_initial_row[0], db_guid_0_0_br);
+    ocrEventSatisfy(diags_initial_col[0], db_guid_0_0_br);
+
+    for ( j = 1; j < n_tiles_width + 1; ++j ) {
+        ocrGuid_t db_guid_0_j_brow;
+        void* db_guid_0_j_brow_data;
+        ocrDbCreate( &db_guid_0_j_brow, &db_guid_0_j_brow_data, sizeof(int)*tile_width, FLAGS, NULL, NO_ALLOC );
+
+        allocated = (int*)db_guid_0_j_brow_data;
+        for( i = 0; i < tile_width ; ++i ) {
+            allocated[i] = GAP_PENALTY*((j-1)*tile_width+i+1);
+        }
+
+        ocrEventSatisfy(data_initial_row[j-1], db_guid_0_j_brow);
+
+        ocrGuid_t db_guid_0_j_br;
+        void* db_guid_0_j_br_data;
+        ocrDbCreate( &db_guid_0_j_br, &db_guid_0_j_br_data, sizeof(int), FLAGS, NULL, NO_ALLOC );
+        allocated = (int*)db_guid_0_j_br_data;
+        allocated[0] = GAP_PENALTY*(j*tile_width); //sagnak: needed to handle tilesize 2
+
+        ocrEventSatisfy(diags_initial_row[j], db_guid_0_j_br);
+    }
+
+    for ( i = 1; i < n_tiles_height + 1; ++i ) {
+        ocrGuid_t db_guid_i_0_rc;
+        void* db_guid_i_0_rc_data;
+        ocrDbCreate( &db_guid_i_0_rc, &db_guid_i_0_rc_data, sizeof(int)*tile_height, FLAGS, NULL, NO_ALLOC );
+        allocated = (int*)db_guid_i_0_rc_data;
+        for ( j = 0; j < tile_height ; ++j ) {
+            allocated[j] = GAP_PENALTY*((i-1)*tile_height+j+1);
+        }
+        ocrEventSatisfy(data_initial_col[i-1], db_guid_i_0_rc);
+
+        ocrGuid_t db_guid_i_0_br;
+        void* db_guid_i_0_br_data;
+        ocrDbCreate( &db_guid_i_0_br, &db_guid_i_0_br_data, sizeof(int), FLAGS, NULL, NO_ALLOC );
+
+        allocated = (int*)db_guid_i_0_br_data;
+        allocated[0] = GAP_PENALTY*(i*tile_height); //sagnak: needed to handle tilesize 2
+
+        ocrEventSatisfy(diags_initial_col[i], db_guid_i_0_br);
+    }
+/*
 	diags_initial_row[0] = 0;
 	diags_initial_col[0] = 0;
 
@@ -229,14 +306,14 @@ u8 smith_waterman_init (signed char * string1, signed char * string2,
         }
         diags_initial_col[i] = GAP_PENALTY*(i*tile_height); //sagnak: needed to handle tilesize 2
     }
-
+*/
     for ( i = 0; i < n_tiles_height; ++i ) {
         for ( j = 0; j < n_tiles_width; ++j ) {
-
-		if (DDDF_HOME( TILE_ID_START(i,j) ) == rank) {
+		int home = DDDF_HOME( TILE_ID_START(i,j) );
+		if (home == rank) {
 
     		intptr_t **p_paramv = (intptr_t **)malloc(sizeof(intptr_t*));
-    		intptr_t *pars = (intptr_t *)malloc(14*sizeof(intptr_t));
+    		intptr_t *pars = (intptr_t *)malloc(16*sizeof(intptr_t));
     		pars[0]=(intptr_t)rank;
     		pars[1]=(intptr_t)num_ranks;
     		pars[2]=(intptr_t) string1;
@@ -256,12 +333,34 @@ u8 smith_waterman_init (signed char * string1, signed char * string2,
     		*p_paramv = pars;
 
             ocrGuid_t task_guid;
-            ocrEdtCreate(&task_guid, smith_waterman_kernel, 12, NULL, (void **) p_paramv, PROPERTIES, 3, NULL);
+            ocrEdtCreate(&task_guid, smith_waterman_kernel, 16, NULL, (void **) p_paramv, PROPERTIES, 3, NULL);
 
-			int slot = 0;
-			if ((i != 0) && (j != 0)) OCR_DDDF_ADD_DEPENDENCE(DIAG_DEP(i,j), task_guid, slot++);
-			if (i != 0) OCR_DDDF_ADD_DEPENDENCE(ROW_DEP(i,j), task_guid, slot++);
-			if (j != 0) OCR_DDDF_ADD_DEPENDENCE(COL_DEP(i,j), task_guid, slot++);
+			if (i == 0) {
+				if (j == 0) {
+					ocrAddDependence(diags_initial_row[j], task_guid, 0);
+					ocrAddDependence(data_initial_row[j], task_guid, 1);
+					ocrAddDependence(data_initial_col[j], task_guid, 2);
+				} else {
+					ocrAddDependence(diags_initial_row[j], task_guid, 0);
+					ocrAddDependence(data_initial_row[j], task_guid, 1);
+					int col_id = COL_DEP(i,j);
+					OCR_DDDF_ADD_DEPENDENCE(col_id, task_guid, 2);
+				}
+			} else {
+				if (j == 0) {
+					ocrAddDependence(diags_initial_row[i], task_guid, 0);
+					int row_id = ROW_DEP(i,j);
+					OCR_DDDF_ADD_DEPENDENCE(row_id, task_guid, 1);
+					ocrAddDependence(data_initial_col[i], task_guid, 2);
+				} else {
+					int diag_id = DIAG_DEP(i,j);
+					OCR_DDDF_ADD_DEPENDENCE(diag_id, task_guid, 0);
+					int row_id = ROW_DEP(i,j);
+					OCR_DDDF_ADD_DEPENDENCE(row_id, task_guid, 1);
+				    int col_id = COL_DEP(i,j);
+					OCR_DDDF_ADD_DEPENDENCE(col_id, task_guid, 2);
+				}
+			}
 
             ocrEdtSchedule(task_guid);
 		}
@@ -312,6 +411,14 @@ u8 smith_waterman_remote_start ( u32 paramc, u64 * params, void* paramv[], u32 d
 	smith_waterman_init(string1, string2, tile_width, tile_height, outer_tile_width, outer_tile_height, n_char_in_file_1, n_char_in_file_2);
 
 	return 0;
+}
+
+u8 smith_waterman_termination ( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) 
+{
+    ocrGuid_t db_guid;
+    void* db_data;
+    ocrDbCreate( &db_guid, &db_data, sizeof(int), FLAGS, NULL, NO_ALLOC );
+	ocrD3FSatisfy(0, 0, db_guid);
 }
 
 int main ( int argc, char* argv[] ) 
@@ -388,6 +495,14 @@ int main ( int argc, char* argv[] )
 
 		smith_waterman_init(string1, string2, tile_width, tile_height, outer_tile_width, outer_tile_height, n_char_in_file_1, n_char_in_file_2);
 
+    	ocrGuid_t task_guid;
+		ocrEdtCreate(&task_guid, smith_waterman_termination, 0, NULL, NULL, PROPERTIES, 1, NULL);
+		int num_ranks = OCR_DDDF_NUM_RANKS();
+		int tile_id_offset = num_ranks + 1;
+		int id = TILE_ID_START(n_tiles_width-1, n_tiles_height-1);
+		OCR_DDDF_ADD_DEPENDENCE(id, task_guid, 0);
+		ocrEdtSchedule(task_guid);
+		
     } else {
 		// Wait for inputs from rank 0
     	ocrGuid_t task_guid;
