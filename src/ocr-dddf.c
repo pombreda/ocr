@@ -264,3 +264,8 @@ u32 ocrD3FGetRank() {
     ocr_mpi_communicator_t * comm = getD3FComm();
     return comm->rank;
 }
+
+u32 ocrD3FGetNumRanks() {
+    ocr_mpi_communicator_t * comm = getD3FComm();
+    return comm->size;
+}

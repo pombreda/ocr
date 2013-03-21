@@ -50,6 +50,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define OCR_DDDF_RANK() ocrD3FGetRank()
 
+#define OCR_DDDF_NUM_RANKS() ocrD3FGetNumRanks()
+
+
 u8 ocrD3FModelInit(void);
 
 u8 ocrD3FAddDependence(int id, int home, ocrGuid_t edt, u32 slot);
@@ -59,5 +62,8 @@ u8 ocrD3FSatisfy(int id, int home, ocrGuid_t dataGuid);
 u8 ocrD3FModelFinalize(int id, int home);
 
 u32 ocrD3FGetRank();
+
+u32 ocrD3FGetNumRanks();
+
 
 #endif /* __OCR_D3F_H_ */
