@@ -207,6 +207,27 @@ u8 ocrEdtCreate(ocrGuid_t * guid, ocrEdt_t funcPtr,
  */
 u8 ocrEdtSchedule(ocrGuid_t guid);
 
+
+/**
+ * @brief Hand over an EDT for the runtime to execute and 'wait' for completion.
+ *
+ * The main purpose of this call is to interact with OCR in a library mode, 
+ * when it is not possible to chain the continuation (what to do next) through 
+ * some dependence because of what's living on the current main thread's stack.
+ *
+ * Restrictions that applies:
+ *  - Strongly suggest that the EDT is a finish-EDT or does not create new EDT.
+ *  - The targeted EDT *MUST* have an output event.
+ *
+ * @param edtGuid   GUID of the EDT to execute
+ * @return Status:
+ *      - 0: Successful
+ *      - EINVAL: The GUID is not an EDT
+ *      - ENOPERM: The EDT does not have all its dependences known
+ *
+ */
+u8 ocrEdtExecute(ocrGuid_t edtGuid);
+
 /**
  * @brief Destroy an EDT
  *

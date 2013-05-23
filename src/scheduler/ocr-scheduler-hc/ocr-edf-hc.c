@@ -627,11 +627,11 @@ static void edtRegisterSignaler(ocr_task_t * base, ocrGuid_t signalerGuid, int s
  * Warning: The caller must ensure all dependencies have been satisfied
  * Note: static function only meant to factorize code.
  */
-static void taskSchedule( ocrGuid_t guid, ocr_task_t* base, ocrGuid_t wid ) {
-    ocr_worker_t* w = NULL;
-    globalGuidProvider->getVal(globalGuidProvider, wid, (u64*)&w, NULL);
-    ocr_scheduler_t * scheduler = get_worker_scheduler(w);
-    scheduler->give(scheduler, wid, guid);
+static void taskSchedule( ocrGuid_t taskGuid, ocr_task_t* base, ocrGuid_t wid ) {
+    ocr_worker_t* worker = NULL;
+    globalGuidProvider->getVal(globalGuidProvider, wid, (u64*)&worker, NULL);
+    ocr_scheduler_t * scheduler = get_worker_scheduler(worker);
+    scheduler->give(scheduler, wid, taskGuid);
 }
 
 /**

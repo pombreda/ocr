@@ -110,6 +110,14 @@ void hc_ocr_module_map_scheduler_to_worker(void * self_module, ocr_module_kind k
     worker->scheduler = ((ocr_scheduler_t **) ptr_instances)[0];
 }
 
+void hc_executeEDT(ocr_worker_t * worker, ocrGuid_t taskGuid, ocrGuid_t currentTaskGuid) {
+    ocr_task_t* taskToExecute = NULL;
+    globalGuidProvider->getVal(globalGuidProvider, taskGuid, (u64*)&(taskToExecute), NULL);
+    worker->setCurrentEDT(worker, taskGuid);
+    taskToExecute->fct_ptrs->execute(taskToExecute);
+    worker->setCurrentEDT(worker, currentTaskGuid);
+}
+
 /**
  * Builds an instance of a HC worker
  */
@@ -137,6 +145,7 @@ ocr_worker_t* hc_worker_constructor () {
     base->getCurrentPolicyDomain = hc_getCurrentPolicyDomain;
     base->getCurrentEDT = hc_getCurrentEDT;
     base->setCurrentEDT = hc_setCurrentEDT;
+    base->executeEDT = hc_executeEDT;
     return base;
 }
 
@@ -166,11 +175,7 @@ void * worker_computation_routine(void * arg) {
     while(worker->is_running(worker)) {
         ocrGuid_t taskGuid = scheduler->take(scheduler, workerGuid);
         if (taskGuid != NULL_GUID) {
-            ocr_task_t* curr_task = NULL;
-            globalGuidProvider->getVal(globalGuidProvider, taskGuid, (u64*)&(curr_task), NULL);
-            worker->setCurrentEDT(worker,taskGuid);
-            curr_task->fct_ptrs->execute(curr_task);
-            worker->setCurrentEDT(worker, NULL_GUID);
+            hc_executeEDT(worker, taskGuid, NULL_GUID);
         }
     }
     return NULL;

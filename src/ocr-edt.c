@@ -101,6 +101,26 @@ u8 ocrAddDependence(ocrGuid_t source, ocrGuid_t destination, u32 slot) {
     return 0;
 }
 
+
+u8 ocrEdtExecute(ocrGuid_t edtGuid) {
+    //TODO check dependencies are here.
+    ocr_task_t * task = NULL;
+    globalGuidProvider->getVal(globalGuidProvider, edtGuid, (u64*)&task, NULL);
+    // ocrEdtCreate must have had an outputEvent associated with this edt
+    ocrGuid_t outputEventGuid = task->outputEvent;
+    assert((outputEventGuid != NULL_GUID) && "error: ocrEdtExecute only supports EDTs that have an output event associated with");
+    // Schedule the edt
+    ocrEdtSchedule(edtGuid);
+
+    // Let the scheduler know we're yielding for the event to be satisfied
+    ocrGuid_t workerGuid = ocr_get_current_worker_guid();
+    ocr_worker_t* w = NULL;
+    globalGuidProvider->getVal(globalGuidProvider, workerGuid, (u64*)&w, NULL);
+    ocr_scheduler_t * scheduler = get_worker_scheduler(w);
+    scheduler->yield(scheduler, workerGuid, edtGuid, outputEventGuid);
+    return 0;
+}
+
 /**
    @brief Get @ offset in the currently running edt's local storage
    Note: not visible from the ocr user interface

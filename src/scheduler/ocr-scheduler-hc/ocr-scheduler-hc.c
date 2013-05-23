@@ -94,10 +94,27 @@ ocrGuid_t hc_scheduler_take (ocr_scheduler_t* base, ocrGuid_t wid ) {
     return popped;
 }
 
+void hc_scheduler_yield (ocr_scheduler_t* base, ocrGuid_t workerGuid, ocrGuid_t yieldingEdtGuid, ocrGuid_t eventToYieldForGuid) {
+    // We do not yet take advantage of knowing which EDT we are yielding for.
+    ocr_worker_t* worker = NULL;
+    globalGuidProvider->getVal(globalGuidProvider, workerGuid, (u64*)&worker, NULL);
+    // Retrieve currently executing edt's guid
+    ocrGuid_t currEdtGuid = getCurrentEDT();
+    ocr_event_t * eventToYieldFor = NULL;
+    globalGuidProvider->getVal(globalGuidProvider, eventToYieldForGuid, (u64*)&eventToYieldFor, NULL);
+    event_get_fct eventGetFctPtr = eventToYieldFor->fct_ptrs->get;
+    //TODO this only works for single events, not latches
+    while(eventGetFctPtr(eventToYieldFor) == ERROR_GUID) {
+        ocrGuid_t taskGuid = base->take(base, workerGuid);
+        if (taskGuid != NULL_GUID) {
+            worker->executeEDT(worker, taskGuid, currEdtGuid);
+        }
+    }
+}
+
 void hc_scheduler_give (ocr_scheduler_t* base, ocrGuid_t wid, ocrGuid_t tid ) {
     ocr_worker_t* w = NULL;
     globalGuidProvider->getVal(globalGuidProvider, wid, (u64*)&w, NULL);
-
     ocr_workpile_t * wp_to_push = base->push_mapping(base, w);
     wp_to_push->push(wp_to_push,tid);
 }
@@ -136,5 +153,6 @@ ocr_scheduler_t* hc_scheduler_constructor() {
     base -> steal_mapping = hc_scheduler_steal_mapping_one_to_all_but_self;
     base -> take = hc_scheduler_take;
     base -> give = hc_scheduler_give;
+    base -> yield = hc_scheduler_yield;
     return base;
 }
