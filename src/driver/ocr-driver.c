@@ -83,6 +83,10 @@ static char * parseOcrOptions_MachineDescription(int * argc, char ** argv) {
  */
 void ocrInit(int * argc, char ** argv, u32 fnc, ocrEdt_t funcs[]) {
 
+	// Check for main EDT function
+	if((fnc <= 0) || (funcs[0] == NULL))
+		ocr_abort();
+
     // Intialize the GUID provider
     globalGuidProvider = newGuidProvider(OCR_GUIDPROVIDER_DEFAULT);
 
@@ -119,7 +123,18 @@ void ocrInit(int * argc, char ** argv, u32 fnc, ocrEdt_t funcs[]) {
     // if the runtime becomes adaptive or something)
     destructOcrModelPolicy(policy_model);
 
+    // Start the root policy environment
     root_policy->start(root_policy);
+
+    // Start executing code
+    root_policy->execute(root_policy, funcs[0], *argc, argv);
+
+    // Stop the root policy
+    root_policy->stop(root_policy);
+
+    // Now on, there is only thread '0'
+    root_policy->destruct(root_policy);
+    globalGuidProvider->destruct(globalGuidProvider);
 }
 
 void ocrFinish() {
@@ -127,10 +142,5 @@ void ocrFinish() {
 }
 
 void ocrCleanup() {
-    // Stop the root policy
-    root_policy->stop(root_policy);
-
-    // Now on, there is only thread '0'
-    root_policy->destruct(root_policy);
-    globalGuidProvider->destruct(globalGuidProvider);
+/* !!!!! DEPRECATED !!!! */
 }

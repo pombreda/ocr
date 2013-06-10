@@ -253,9 +253,9 @@ u8 wrap_up_task ( u32 paramc, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
     ocrFinish();
 }
 
-int main( int argc, char* argv[] ) {
-    OCR_INIT(&argc, argv, sequential_cholesky_task, trisolve_task, update_nondiagonal_task, update_diagonal_task, wrap_up_task);
-
+ocrGuid_t ocr_main ( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
+		int argc = paramc;
+		char ** argv = paramv;
         int i, j, k, ii;
         double **A, ** temp;
         int A_i, A_j, T_i, T_j;
@@ -454,6 +454,11 @@ int main( int argc, char* argv[] ) {
         taskFactory->create(wrap_up_task, &el, worker_guid);
     }
 
-    ocrCleanup();
-        return 0;
+        return NULL_GUID;
 }
+
+int main( int argc, char* argv[] ) {
+    OCR_INIT(&argc, argv, ocr_main, sequential_cholesky_task, trisolve_task, update_nondiagonal_task, update_diagonal_task, wrap_up_task);
+	return 0;
+}
+

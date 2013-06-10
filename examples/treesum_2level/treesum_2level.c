@@ -84,10 +84,9 @@ ocrGuid_t autumn(u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t
 }
 
 
-int main (int argc, char ** argv) {
-    ocrEdt_t fctPtrArray[2] = {summer, autumn};
-    ocrInit(&argc, argv, 2, fctPtrArray);
-
+ocrGuid_t ocr_main ( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
+	int argc = paramc;
+	char ** argv = (char **) paramv;
     /* Create 4 data-blocks */
     ocrGuid_t dbs[4];
     int *data[4];
@@ -174,6 +173,10 @@ int main (int argc, char ** argv) {
     ocrEventSatisfy(summer3Evt[2], summer3EvtDbGuid);
 
     /* Finalize */
-    ocrCleanup();
-    return 0;
+    return NULL_GUID;
+}
+
+int main (int argc, char ** argv) {
+    OCR_INIT(&argc, argv, ocr_main, summer, autumn );
+	return 0;
 }

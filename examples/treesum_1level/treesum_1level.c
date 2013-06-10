@@ -84,10 +84,9 @@ ocrGuid_t autumn(u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t
 }
 
 
-int main (int argc, char ** argv) {
-    ocrEdt_t fctPtrArray[2] = {summer, autumn};
-    ocrInit(&argc, argv, 2, fctPtrArray); /* No machine description */
-
+ocrGuid_t ocr_main ( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
+	int argc = paramc;
+	char ** argv = (char **) paramv;
     if(argc != 3) {
         printf("Usage %s <num1> <num2>\n", argv[0]);
         return -1;
@@ -149,6 +148,10 @@ int main (int argc, char ** argv) {
     ocrEventSatisfy(summerEvt[2], summerEvtDbGuid);
 
     /* Finalize */
-    ocrCleanup();
-    return 0;
+    return NULL_GUID;
+}
+
+int main (int argc, char ** argv) {
+    OCR_INIT(&argc, argv, ocr_main, summer, autumn );
+	return 0;
 }

@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ocr-macros.h"
 #include "hc.h"
 #include "ocr-policy.h"
+#include "ocr-db.h"
 
 void hc_policy_domain_create(ocr_policy_domain_t * policy, void * configuration,
                              ocr_scheduler_t ** schedulers, ocr_worker_t ** workers,
@@ -75,6 +76,28 @@ void hc_policy_domain_start(ocr_policy_domain_t * policy) {
     associate_executor_and_worker(policy->workers[0]);
 }
 
+void hc_policy_domain_execute(ocr_policy_domain_t * policy, ocrEdt_t main_edt, int argc, char ** argv) {
+    size_t i;
+
+	// create and schedule the main edt
+	ocrGuid_t edt_guid;
+	ocrEdtCreate(&edt_guid, main_edt, argc, NULL, (void **) argv, 0, argc, NULL, NULL_GUID);
+	for (i = 0; i < argc; i++) {
+		char **p;
+		ocrGuid_t db_guid;
+		ocrDbCreate(&db_guid, (void **) &p, sizeof(char*), 0, NULL, NO_ALLOC);
+		*p = argv[i];
+		ocrAddDependence(db_guid, edt_guid, i);
+	}
+	ocrEdtSchedule(edt_guid);
+
+    // Current thread is thread '0' mapped to worker '0'
+    // Now that the main edt has been scheduled the worker
+    // can begin its worker scheduling routine
+    ocr_worker_t * worker_zero = policy->workers[0];
+    worker_zero->routine(worker_zero);
+}
+
 void hc_policy_domain_finish(ocr_policy_domain_t * policy) {
     // Note: As soon as worker '0' is stopped its thread is
     // free to fall-through in ocr_finalize() (see warning there)
@@ -85,12 +108,6 @@ void hc_policy_domain_finish(ocr_policy_domain_t * policy) {
 }
 
 void hc_policy_domain_stop(ocr_policy_domain_t * policy) {
-    // Current thread is thread '0' mapped to worker '0'
-    // Now that the thread went through all the user code it
-    // can begin its worker scheduling routine
-    ocr_worker_t * worker_zero = policy->workers[0];
-    worker_zero->routine(worker_zero);
-
     // WARNING: Do not add code here unless you know what you're doing !!
     // If we are here, it means a codelet called ocrFinish which
     // logically stopped workers and can make thread '0' executes this
@@ -133,6 +150,7 @@ ocr_policy_domain_t * hc_policy_domain_constructor(size_t nb_workpiles,
     policy->nb_schedulers = nb_schedulers;
     policy->create = hc_policy_domain_create;
     policy->start = hc_policy_domain_start;
+    policy->execute = hc_policy_domain_execute;
     policy->finish = hc_policy_domain_finish;
     policy->stop = hc_policy_domain_stop;
     policy->destruct = hc_policy_domain_destruct;

@@ -46,11 +46,7 @@ ocrGuid_t task_for_edt ( u32 paramc, u64 * params, void* paramv[], u32 depc, ocr
     return NULL_GUID;
 }
 
-int main (int argc, char ** argv) {
-    ocrEdt_t fctPtrArray [1];
-    fctPtrArray[0] = &task_for_edt;
-    ocrInit(&argc, argv, 1, fctPtrArray);
-
+ocrGuid_t ocr_main ( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
     // Current thread is '0' and goes on with user code.
     ocrGuid_t event_guid;
     ocrEventCreate(&event_guid, OCR_EVENT_STICKY_T, true);
@@ -75,7 +71,11 @@ int main (int argc, char ** argv) {
 
     ocrEventSatisfy(event_guid, db_guid);
 
-    ocrCleanup();
-
-    return 0;
+    return NULL_GUID;
 }
+
+int main (int argc, char ** argv) {
+	OCR_INIT(&argc, argv, ocr_main, task_for_edt);
+	return 0;
+}
+

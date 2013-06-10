@@ -11,6 +11,8 @@
 #define FLAGS 0xdead
 #define PROPERTIES 0xdead
 
+struct timeval a, b;
+
 enum Nucleotide {GAP=0, ADENINE, CYTOSINE, GUANINE, THYMINE};
 
 signed char char_mapping ( char c ) {
@@ -169,6 +171,8 @@ ocrGuid_t smith_waterman_task ( u32 paramc, u64 * params, void* paramv[], u32 de
     free(curr_tile_tmp);
     /* If this is the last tile (bottom right most tile), finish */
     if ( i == n_tiles_height && j == n_tiles_width ) {
+    	gettimeofday(&b, 0);
+    	printf("The computation took %f seconds\r\n",((b.tv_sec - a.tv_sec)*1000000+(b.tv_usec - a.tv_usec))*1.0/1000000);
         fprintf(stdout, "score: %d\n", curr_bottom_row[tile_width-1]);
         ocrFinish();
     }
@@ -232,9 +236,9 @@ static void initialize_border_values( Tile_t** tile_matrix, int n_tiles_width, i
     }
 }
 
-int main ( int argc, char* argv[] ) {
-
-    OCR_INIT(&argc, argv, smith_waterman_task );
+ocrGuid_t ocr_main ( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
+	int argc = paramc;
+	char ** argv = (char **) paramv;
     int i, j;
 
     int tile_width = (int) atoi (argv[3]);
@@ -293,8 +297,6 @@ int main ( int argc, char* argv[] ) {
 
     initialize_border_values(tile_matrix, n_tiles_width, n_tiles_height, tile_width, tile_height);
 
-    struct timeval a;
-    struct timeval b;
     gettimeofday(&a, 0);
 
     for ( i = 1; i < n_tiles_height+1; ++i ) {
@@ -333,8 +335,11 @@ int main ( int argc, char* argv[] ) {
         }
     }
 
-    ocrCleanup();
-    gettimeofday(&b, 0);
-    printf("The computation took %f seconds\r\n",((b.tv_sec - a.tv_sec)*1000000+(b.tv_usec - a.tv_usec))*1.0/1000000);
-    return 0;
+    return NULL_GUID;
 }
+
+int main ( int argc, char* argv[] ) {
+    OCR_INIT(&argc, argv, ocr_main, smith_waterman_task );
+	return 0;
+}
+

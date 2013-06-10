@@ -65,6 +65,8 @@ void ocrInit(int * argc, char ** argv, u32 fnc, ocrEdt_t funcs[] );
 void ocrFinish();
 
 /**
+ *                       !!!!! DEPRECATED !!!!
+ *
  * Called by the last executing EDT to signal the runtime
  * the user program is done.
  *
@@ -79,6 +81,8 @@ void ocrFinish();
  * then ocrCleanup which will wait until ocrFinish is called and then
  * ocrCleanup will finish cleaning up and control will be returned
  * to the main program
+ *
+ *                       !!!!! DEPRECATED !!!!
  */
 void ocrCleanup();
 

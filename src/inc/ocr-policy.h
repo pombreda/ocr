@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ocr-low-memory.h"
 #include "ocr-datablock.h"
 #include "ocr-sync.h"
+#include "ocr-edt.h"
 
 
 /******************************************************/
@@ -55,6 +56,7 @@ typedef void (*ocr_policy_create_fct) (struct ocr_policy_domain_struct * policy,
                                        ocr_executor_t ** executors, ocr_workpile_t ** workpiles,
                                        ocrAllocator_t ** allocators, ocrLowMemory_t ** memories);
 typedef void (*ocr_policy_start_fct) (struct ocr_policy_domain_struct * policy);
+typedef void (*ocr_policy_execute_fct) (struct ocr_policy_domain_struct * policy, ocrEdt_t main_edt, int argc, char ** argv);
 typedef void (*ocr_policy_finish_fct) (struct ocr_policy_domain_struct * policy);
 typedef void (*ocr_policy_stop_fct) (struct ocr_policy_domain_struct * policy);
 typedef void (*ocr_policy_destruct_fct) (struct ocr_policy_domain_struct * policy);
@@ -78,6 +80,7 @@ typedef struct ocr_policy_domain_struct {
 
     ocr_policy_create_fct create;
     ocr_policy_start_fct start;
+    ocr_policy_execute_fct execute;
     ocr_policy_finish_fct finish;
     ocr_policy_stop_fct stop;
     ocr_policy_destruct_fct destruct;
