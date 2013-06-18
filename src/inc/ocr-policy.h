@@ -64,12 +64,12 @@ typedef ocrGuid_t (*ocr_policy_getAllocator)(struct ocr_policy_domain_struct *po
 
 typedef struct ocr_policy_domain_struct {
     ocrGuid_t guid;
-    int nb_schedulers;
-    int nb_workers;
-    int nb_executors;
-    int nb_workpiles;
-    int nb_allocators;
-    int nb_memories;
+    u64 nb_schedulers;
+    u64 nb_workers;
+    u64 nb_executors;
+    u64 nb_workpiles;
+    u64 nb_allocators;
+    u64 nb_memories;
 
     ocr_scheduler_t ** schedulers;
     ocr_worker_t ** workers;

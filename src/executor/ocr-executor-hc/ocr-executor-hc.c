@@ -33,13 +33,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ocr-executor.h"
 
-void hc_ocr_module_map_worker_to_executors(void * self_module, ocr_module_kind kind,
+extern void associate_pthread_executor_and_hc_worker(ocr_executor_t * executor, ocr_worker_t * worker);
+extern ocr_worker_t * ocr_get_current_worker_pthread();
+extern ocrGuid_t ocr_get_current_worker_guid_pthread();
+
+void hc_ocr_module_map_worker_to_executors_pthread(void * self_module, ocr_module_kind kind,
         size_t nb_instances, void ** ptr_instances) {
     // Checking mapping conforms to what we're expecting in this implementation
     assert(kind == OCR_WORKER);
     assert(nb_instances == 1);
     ocr_worker_t * worker = (ocr_worker_t *) ptr_instances[0];
     ocr_executor_t * executor = (ocr_executor_t *) self_module;
+	associate_pthread_executor_and_hc_worker(executor, worker);
     //TODO the routine thing is a hack. Threads should pick workers from a worker pool
     executor->routine = worker->routine;
     executor->routine_arg = worker;
@@ -47,6 +52,8 @@ void hc_ocr_module_map_worker_to_executors(void * self_module, ocr_module_kind k
 
 ocr_executor_t * ocr_executor_hc_constructor() {
     ocr_executor_t * executor = ocr_executor_pthread_constructor();
-    ((ocr_module_t *) executor)->map_fct = hc_ocr_module_map_worker_to_executors;
+    ((ocr_module_t *) executor)->map_fct = hc_ocr_module_map_worker_to_executors_pthread;
+	ocr_get_current_worker_guid = ocr_get_current_worker_guid_pthread;
+	ocr_get_current_worker = ocr_get_current_worker_pthread;
     return executor;
 }

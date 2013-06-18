@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ocr-guid.h"
 #include "ptr/ptr.h"
+#include "dnx/dnx.h"
 #include "debug.h"
 
 ocrGuidProvider_t *globalGuidProvider = NULL;
@@ -41,6 +42,8 @@ ocrGuidProvider_t* newGuidProvider(ocrGuidProviderKind type) {
     switch(type) {
     case OCR_GUIDPROVIDER_PTR:
         return newGuidProviderPtr();
+    case OCR_GUIDPROVIDER_DNX:
+        return newGuidProviderDnx();
     default:
         ASSERT(0);
     }

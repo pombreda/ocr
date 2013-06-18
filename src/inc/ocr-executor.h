@@ -81,12 +81,6 @@ typedef struct ocr_executor_struct {
     ocr_executor_stop_fct stop;
 } ocr_executor_t;
 
-//TODO this is really ocr-hc specific
-void associate_executor_and_worker(ocr_worker_t * worker);
-
-ocrGuid_t ocr_get_current_worker_guid();
-
-
 /******************************************************/
 /* OCR EXECUTOR KINDS AND CONSTRUCTORS                */
 /******************************************************/

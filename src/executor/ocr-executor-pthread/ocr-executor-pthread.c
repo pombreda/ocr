@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ocr-macros.h"
 #include "ocr-executor.h"
+#include "hc.h"
 
 /******************************************************/
 /* PTHREAD executor                                   */
@@ -110,11 +111,24 @@ ocr_executor_t * ocr_executor_pthread_constructor () {
     return executor;
 }
 
-void associate_executor_and_worker(ocr_worker_t * worker) {
+void ocr_executor_pthread_associate_worker(ocr_worker_t * worker) {
     int rt = pthread_setspecific(worker_key, worker);
     if (rt != 0) { printf("[PTHREAD] - ERROR in pthread_setspecific\n"); exit(1); }
 }
 
-ocrGuid_t ocr_get_current_worker_guid() {
+void associate_pthread_executor_and_hc_worker(ocr_executor_t * executor, ocr_worker_t * worker) {
+	hc_worker_t * hcWorker = (hc_worker_t *)worker;
+	hcWorker->associateExecutor = &ocr_executor_pthread_associate_worker;
+}
+
+ocrGuid_t ocr_get_current_worker_guid_pthread() {
     return get_worker_guid(((ocr_worker_t*)pthread_getspecific(worker_key)));
 }
+
+/* 
+ * CAUTION: Use this for model specific codes only 
+ */
+ocr_worker_t * ocr_get_current_worker_pthread() {
+    return (ocr_worker_t*)pthread_getspecific(worker_key);
+}
+

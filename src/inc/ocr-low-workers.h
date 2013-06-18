@@ -118,16 +118,17 @@ ocrGuid_t get_worker_guid(ocr_worker_t * worker);
  */
 ocr_scheduler_t * get_worker_scheduler(ocr_worker_t * worker);
 
-/*! \brief Associate a worker to an executor.
- *  \param[in] worker
- *  An executor that calls this function should be
- */
-void associate_executor_and_worker(ocr_worker_t * worker);
-
 /*! \brief Get current calling context Worker's GUID
  *  \return GUID for the Worker instance that is executing the code context this function is called in
  */
-ocrGuid_t ocr_get_current_worker_guid();
+typedef ocrGuid_t (*ocr_get_current_worker_guid_fct)();
+extern ocr_get_current_worker_guid_fct ocr_get_current_worker_guid;
+
+/*! \brief Function pointer for getting current calling context Worker data structure
+ *  \return the Worker instance that is executing the code context this function is called in
+ */
+typedef ocr_worker_t* (*ocr_get_current_worker_fct)();
+extern ocr_get_current_worker_fct ocr_get_current_worker;
 
 /*! \brief Get the currently executing worker and return the edt's guid it is currently executing.
  */

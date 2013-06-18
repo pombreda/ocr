@@ -71,9 +71,11 @@ void hc_policy_domain_start(ocr_policy_domain_t * policy) {
     }
     // Handle thread '0'
     policy->workers[0]->start(policy->workers[0]);
-    // Need to associate thread and worker here, as current thread fall-through
-    // in user code and may need to know which Worker it is associated to.
-    associate_executor_and_worker(policy->workers[0]);
+
+    // Initialize worker specific data for GUID system
+    // to correctly identify current worker
+	hc_worker_t * hcWorker = (hc_worker_t *)policy->workers[0];
+	hcWorker->associateExecutor(policy->workers[0]);
 }
 
 void hc_policy_domain_execute(ocr_policy_domain_t * policy, ocrEdt_t main_edt, int argc, char ** argv) {

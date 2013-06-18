@@ -44,7 +44,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* OCR-HC WORKER                                      */
 /******************************************************/
 
-typedef struct {
+// Forward declaration
+struct hc_worker_struct;
+
+typedef void (*ocr_worker_associate_executor_fct) (ocr_worker_t * worker);
+
+typedef struct hc_worker_struct {
     ocr_worker_t worker;
     //TODO this is a convenience to map workers to workpiles
     int id;
@@ -54,6 +59,8 @@ typedef struct {
     ocrGuid_t policy_domain_guid;
     // reference to the EDT this worker is currently executing
     ocrGuid_t currentEDT_guid;
+	// associate worker and executor
+    ocr_worker_associate_executor_fct associateExecutor;
 } hc_worker_t;
 
 ocr_worker_t* hc_worker_constructor(void);

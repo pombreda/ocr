@@ -37,6 +37,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ocr-low-workers.h"
 
 extern ocr_worker_t * hc_worker_constructor();
+ocr_worker_t * ocr_get_current_worker_default();
+ocrGuid_t ocr_get_current_worker_guid_default();
 
 ocr_worker_t * newWorker(ocr_worker_kind workerType) {
     switch(workerType) {
@@ -53,3 +55,14 @@ ocrGuid_t getCurrentEdt() {
     globalGuidProvider->getVal(globalGuidProvider, workerGuid, (u64*)&(worker), NULL);
     return worker->getCurrentEDT(worker);
 }
+
+ocr_worker_t * ocr_get_current_worker_default() {
+	return NULL;
+}
+ocr_get_current_worker_fct ocr_get_current_worker = ocr_get_current_worker_default;
+
+ocrGuid_t ocr_get_current_worker_guid_default() {
+	return NULL_GUID;
+}
+ocr_get_current_worker_guid_fct ocr_get_current_worker_guid = ocr_get_current_worker_guid_default;
+

@@ -75,7 +75,17 @@ typedef struct _ocrGuidProvider_t {
     void (*destruct)(struct _ocrGuidProvider_t* self);
 
     /**
-     * @brief Returns a GUID for an object of type 'type'
+     * @brief Start the user code guid provider
+     *
+     * This will switch from runtime-only guid provider
+	 * to regular guid provider
+     *
+     * @param self          Pointer to this GUID provider
+     */
+    void (*start)(struct _ocrGuidProvider_t* self);
+
+    /**
+     * @brief Returns a GUID for a user objects of type 'type'
      * and associates the value val.
      *
      * The GUID provider basically associates a value with the
@@ -128,7 +138,8 @@ typedef struct _ocrGuidProvider_t {
 
 typedef enum _ocrGuidProviderKind {
     OCR_GUIDPROVIDER_DEFAULT = 0,
-    OCR_GUIDPROVIDER_PTR = 1
+    OCR_GUIDPROVIDER_PTR = 1,
+    OCR_GUIDPROVIDER_DNX, /* Guid using distributed (d), node (n), index (x): node:20 + bucket:20 + index:20 + type:4*/
 } ocrGuidProviderKind;
 
 extern ocrGuidProviderKind ocrGuidProviderDefaultKind;

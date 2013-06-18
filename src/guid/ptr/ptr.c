@@ -48,6 +48,10 @@ void ptrDestruct(ocrGuidProvider_t* self) {
     return;
 }
 
+void ptrStart(ocrGuidProvider_t* self) {
+    return;
+}
+
 u8 ptrGetGuid(ocrGuidProvider_t* self, ocrGuid_t* guid, u64 val, ocrGuidKind kind) {
     ocrGuidImpl_t * guidInst = malloc(sizeof(ocrGuidImpl_t));
     guidInst->guid = (ocrGuid_t)val;
@@ -79,6 +83,7 @@ ocrGuidProvider_t* newGuidProviderPtr() {
     ocrGuidProviderPtr_t *result = (ocrGuidProviderPtr_t*)malloc(sizeof(ocrGuidProviderPtr_t));
     result->base.create = &ptrCreate;
     result->base.destruct = &ptrDestruct;
+    result->base.start = &ptrStart;
     result->base.getGuid = &ptrGetGuid;
     result->base.getVal = &ptrGetVal;
     result->base.getKind = &ptrGetKind;

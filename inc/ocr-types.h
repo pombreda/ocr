@@ -56,8 +56,8 @@ typedef u8 bool;
  * @brief Type describing the unique identifier of most
  * objects in OCR (EDTs, data-blocks, etc).
  **/
-typedef intptr_t ocrGuid_t;
-//typedef u64 ocrGuid_t;
+//typedef intptr_t ocrGuid_t;
+typedef u64 ocrGuid_t;
 
 #define NULL_GUID ((ocrGuid_t)0x0)
 

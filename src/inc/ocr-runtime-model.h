@@ -50,6 +50,14 @@ typedef struct _ocrAllocatorModel_t {
 
 typedef struct {
     ocr_model_t model;
+    int total_nb_schedulers;
+    int total_nb_workers;
+    int total_nb_executors;
+    int total_nb_workpiles;
+    u64 totalNumMemories;
+    u64 totalNumAllocators;
+	u64 total_nb_nodes;
+	u64 node_rank;
     size_t nb_scheduler_types;
     size_t nb_worker_types;
     size_t nb_executor_types;

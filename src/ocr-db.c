@@ -116,18 +116,18 @@ u8 ocrDbMallocOffset(ocrGuid_t guid, u64 size, u64* offset) {
     return EINVAL; /* not yet implemented */
 }
 
-struct ocrDbCopy_args {
+typedef struct ocrDbCopy_args {
 	ocrGuid_t destination;
 	u64 destinationOffset; 
 	ocrGuid_t source; 
 	u64 sourceOffset; 
 	u64 size;
-} ocrDbCopy_args;
+} ocrDbCopy_t;
 
 ocrGuid_t ocrDbCopy_edt ( u32 paramc, u64 * params, void* paramv[], u32 depc, ocrEdtDep_t depv[]) {
 	char *sptr, *dptr;
 
-	struct ocrDbCopy_args * pv = (struct ocrDbCopy_args *) depv[0].ptr;
+	ocrDbCopy_t * pv = (ocrDbCopy_t *) depv[0].ptr;
 	ocrGuid_t destination = pv->destination;
 	u64 destinationOffset = pv->destinationOffset;
 	ocrGuid_t source = pv->source;
@@ -159,29 +159,24 @@ ocrGuid_t ocrDbCopy_edt ( u32 paramc, u64 * params, void* paramv[], u32 depc, oc
 }
 
 u8 ocrDbCopy(ocrGuid_t destination,u64 destinationOffset, ocrGuid_t source, u64 sourceOffset, u64 size, u64 copyType, ocrGuid_t * completionEvt) {
-    // Create the event
-	ocrGuid_t event_guid;
-    ocrEventCreate(&event_guid, OCR_EVENT_STICKY_T, true); /*TODO: Replace with ONCE after that is supported */
-
-    // Create the EDT
-    ocrGuid_t edt_guid;
-    ocrEdtCreate(&edt_guid, ocrDbCopy_edt, 0, NULL, NULL, 0, 1, &event_guid, completionEvt);
-	ocrEdtSchedule(edt_guid);
-
 	// Create the copy params
-	ocrGuid_t param_db_guid;
-    struct ocrDbCopy_args * db_args = NULL;
-    void * ptr = (void *) db_args;
+    void * ptr;
+	ocrGuid_t copy_param_db_guid;
     // Warning: directly casting db_args to (void **) causes a type-punning warning with gcc-4.1.2
-    ocrDbCreate(&param_db_guid, &ptr, sizeof(ocrDbCopy_args), 0xdead, NULL, NO_ALLOC);
+    ocrDbCreate(&copy_param_db_guid, &ptr, sizeof(ocrDbCopy_t), 0xdead, NULL, NO_ALLOC);
 
+    ocrDbCopy_t * db_args = (ocrDbCopy_t *)ptr;
 	db_args->destination = destination;
 	db_args->destinationOffset = destinationOffset;
 	db_args->source = source;
 	db_args->sourceOffset = sourceOffset;
 	db_args->size = size;
 
-	ocrEventSatisfy(event_guid, param_db_guid);
+    // Create the EDT
+    ocrGuid_t edt_guid;
+    ocrEdtCreate(&edt_guid, ocrDbCopy_edt, 0, NULL, NULL, 0, 1, NULL, completionEvt);
+	ocrAddDependence(copy_param_db_guid, edt_guid, 0);
+	ocrEdtSchedule(edt_guid);
 
 	/* ocrDbRelease(param_db_guid); TODO: BUG: Release tries to free */
 

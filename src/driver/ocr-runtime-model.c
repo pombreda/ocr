@@ -245,6 +245,46 @@ ocr_model_policy_t * defaultOcrModelPolicy(size_t nb_schedulers, size_t nb_worke
     defaultPolicy->numAllocTypes = 1;
     defaultPolicy->allocators = defaultAllocator;
 
+    int total_nb_schedulers = 0;
+    int total_nb_workers = 0;
+    int total_nb_executors = 0;
+    int total_nb_workpiles = 0;
+    u64 totalNumMemories = 0;
+    u64 totalNumAllocators = 0;
+    size_t j = 0;
+    for(j=0; j < defaultPolicy->nb_scheduler_types; j++) {
+        total_nb_schedulers += defaultPolicy->schedulers[j].nb_instances;
+    }
+    for(j=0; j < defaultPolicy->nb_worker_types; j++) {
+        total_nb_workers += defaultPolicy->workers[j].nb_instances;
+    }
+    for(j=0; j < defaultPolicy->nb_executor_types; j++) {
+        total_nb_executors += defaultPolicy->executors[j].nb_instances;
+    }
+    for(j=0; j < defaultPolicy->nb_workpile_types; j++) {
+        total_nb_workpiles += defaultPolicy->workpiles[j].nb_instances;
+    }
+    for(j=0; j < defaultPolicy->numAllocTypes; ++j) {
+        totalNumAllocators += defaultPolicy->allocators[j].model.nb_instances;
+    }
+    for(j=0; j < defaultPolicy->numMemTypes; ++j) {
+        totalNumMemories += defaultPolicy->memories[j].nb_instances;
+    }
+
+    defaultPolicy->total_nb_schedulers = total_nb_schedulers;
+    defaultPolicy->total_nb_workers = total_nb_workers;
+    defaultPolicy->total_nb_executors = total_nb_executors;
+    defaultPolicy->total_nb_workpiles = total_nb_workpiles;
+    defaultPolicy->totalNumMemories = totalNumMemories;
+    defaultPolicy->totalNumAllocators = totalNumAllocators;
+	defaultPolicy->total_nb_nodes = 1;
+	defaultPolicy->node_rank = 0;
+
+	// Initialize the guid provider structure
+	// CAUTION: There cannot be any getGuid calls before this.
+    globalGuidProvider = newGuidProvider(OCR_GUIDPROVIDER_DNX);
+	globalGuidProvider->create(globalGuidProvider, (void*)defaultPolicy);
+
     return defaultPolicy;
 }
 
@@ -279,31 +319,12 @@ void destructOcrModelPolicy(ocr_model_policy_t * model) {
 ocr_policy_domain_t * instantiateModel(ocr_model_policy_t * model) {
 
     // Compute total number of workers, executors and workpiles, allocators and memories
-    int total_nb_schedulers = 0;
-    int total_nb_workers = 0;
-    int total_nb_executors = 0;
-    int total_nb_workpiles = 0;
-    u64 totalNumMemories = 0;
-    u64 totalNumAllocators = 0;
-    size_t j = 0;
-    for(j=0; j < model->nb_scheduler_types; j++) {
-        total_nb_schedulers += model->schedulers[j].nb_instances;
-    }
-    for(j=0; j < model->nb_worker_types; j++) {
-        total_nb_workers += model->workers[j].nb_instances;
-    }
-    for(j=0; j < model->nb_executor_types; j++) {
-        total_nb_executors += model->executors[j].nb_instances;
-    }
-    for(j=0; j < model->nb_workpile_types; j++) {
-        total_nb_workpiles += model->workpiles[j].nb_instances;
-    }
-    for(j=0; j < model->numAllocTypes; ++j) {
-        totalNumAllocators += model->allocators[j].model.nb_instances;
-    }
-    for(j=0; j < model->numMemTypes; ++j) {
-        totalNumMemories += model->memories[j].nb_instances;
-    }
+    int total_nb_schedulers = model->total_nb_schedulers;
+    int total_nb_workers = model->total_nb_workers;
+    int total_nb_executors = model->total_nb_executors;
+    int total_nb_workpiles = model->total_nb_workpiles;
+    u64 totalNumMemories = model->totalNumMemories;
+    u64 totalNumAllocators = model->totalNumAllocators;
 
     // Create an instance of the policy domain
     ocr_policy_domain_t * policyDomain = newPolicy(model->model.kind,

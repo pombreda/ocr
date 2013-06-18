@@ -117,8 +117,8 @@ ocr_worker_t* hc_worker_constructor () {
     hc_worker_t * worker = checked_malloc(worker, sizeof(hc_worker_t));
     worker->id = -1;
     worker->run = false;
-
     worker->currentEDT_guid = NULL_GUID;
+	worker->associateExecutor = NULL;
 
     ocr_worker_t * base = (ocr_worker_t *) worker;
     ocr_module_t* module_base = (ocr_module_t*) base;
@@ -158,8 +158,9 @@ ocrGuid_t get_worker_guid(ocr_worker_t * worker) {
 //TODO shall this be in namespace ocr-hc ?
 void * worker_computation_routine(void * arg) {
     ocr_worker_t * worker = (ocr_worker_t *) arg;
+    hc_worker_t * hcWorker = (hc_worker_t *) worker;
     /* associate current thread with the worker */
-    associate_executor_and_worker(worker);
+    hcWorker->associateExecutor(worker);
     ocrGuid_t workerGuid = get_worker_guid(worker);
     ocr_scheduler_t * scheduler = get_worker_scheduler(worker);
     log_worker(INFO, "Starting scheduler routine of worker %d\n", get_worker_id(worker));

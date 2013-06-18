@@ -14,3 +14,9 @@ libocr_la_LIBADD += libocr_guid_ptr.la
 
 libocr_guid_ptr_la_SOURCES = \
 $(OCR_SRC_GUID)/ptr/ptr.c
+
+noinst_LTLIBRARIES += libocr_guid_dnx.la
+libocr_la_LIBADD += libocr_guid_dnx.la
+
+libocr_guid_dnx_la_SOURCES = \
+$(OCR_SRC_GUID)/dnx/dnx.c

@@ -126,7 +126,11 @@ void ocrInit(int * argc, char ** argv, u32 fnc, ocrEdt_t funcs[]) {
     // Start the root policy environment
     root_policy->start(root_policy);
 
-    // Start executing code
+    // Start guid provider for user code after
+	// runtime environment has been fully setup
+	globalGuidProvider->start(globalGuidProvider);
+
+    // Start executing user code
     root_policy->execute(root_policy, funcs[0], *argc, argv);
 
     // Stop the root policy
