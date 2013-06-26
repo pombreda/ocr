@@ -1,5 +1,5 @@
 /**
- * @brief Tuning language API implementation for OCR
+ * @brief OCR Affinity
  * @authors Sanjay Chatterjee, Rice University
  * @date 2012-09-21
  * Copyright (c) 2012, Intel Corporation
@@ -31,15 +31,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **/
 
+#include "debug.h"
 #include "ocr-affinity.h"
+#include "affinity-regular/affinity-regular.h"
 
-u8 ocrAffinityCreate(ocrGuid_t * guid, ocrGuid_t policyDomain) {
-	ocrAffinity_t * affinity = newAffinity(OCR_AFFINITY_DEFAULT);
-
-	/*TODO REMOVE HACK: Currently policy domain is not used. We pass in the virtual node instead */
-	u64 vNode = (u64)policyDomain;
-	affinity->create(affinity, (void*)vNode);
-
-	*guid = affinity->guid;
-	return 0;
+ocrAffinity_t* newAffinity(ocrAffinityKind type) {
+    switch(type) {
+    case OCR_AFFINITY_REGULAR:
+        return newAffinityRegular();
+        break;
+    default:
+        ASSERT(0);
+    }
+    return NULL;
 }

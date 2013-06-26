@@ -23,6 +23,7 @@ lib_LTLIBRARIES = libocr.la
 noinst_LTLIBRARIES =
 libocr_la_LIBADD =
 
+include affinity/Makefile.inc
 include allocator/Makefile.inc
 include datablock/Makefile.inc
 include driver/Makefile.inc

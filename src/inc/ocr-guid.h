@@ -43,7 +43,8 @@ typedef enum {
     OCR_GUID_EDT = 3,
     OCR_GUID_EVENT = 4,
     OCR_GUID_POLICY = 5,
-    OCR_GUID_WORKER = 6
+    OCR_GUID_WORKER = 6,
+    OCR_GUID_AFFINITY = 7
 } ocrGuidKind;
 
 /**

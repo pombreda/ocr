@@ -1,5 +1,5 @@
 /**
- * @brief Tuning language API implementation for OCR
+ * @brief OCR Affinity regular implementation
  * @authors Sanjay Chatterjee, Rice University
  * @date 2012-09-21
  * Copyright (c) 2012, Intel Corporation
@@ -31,15 +31,19 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **/
 
-#include "ocr-affinity.h"
+#include <stdlib.h>
+#include "affinity-regular.h"
 
-u8 ocrAffinityCreate(ocrGuid_t * guid, ocrGuid_t policyDomain) {
-	ocrAffinity_t * affinity = newAffinity(OCR_AFFINITY_DEFAULT);
+void regularAffinityCreate(ocrAffinity_t *self, void * config) {
+	ocrAffinityRegular_t *rself = (ocrAffinityRegular_t*)self;
+	u64 vNode = (u64)config; //TODO: temporary hack
+	rself->vNode = vNode;
+}
 
-	/*TODO REMOVE HACK: Currently policy domain is not used. We pass in the virtual node instead */
-	u64 vNode = (u64)policyDomain;
-	affinity->create(affinity, (void*)vNode);
-
-	*guid = affinity->guid;
-	return 0;
+ocrAffinity_t* newAffinityRegular() {
+    ocrAffinityRegular_t *result = (ocrAffinityRegular_t*)malloc(sizeof(ocrAffinityRegular_t));
+    result->base.guid = UNINITIALIZED_GUID;
+    globalGuidProvider->getGuid(globalGuidProvider, &(result->base.guid), (u64)result, OCR_GUID_AFFINITY);
+    result->base.create = &regularAffinityCreate;
+    return (ocrAffinity_t*)result;
 }

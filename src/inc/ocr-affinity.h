@@ -1,7 +1,6 @@
 /**
- * @brief Tuning language API implementation for OCR
+ * @brief OCR Affinity Headers
  * @authors Sanjay Chatterjee, Rice University
- * @date 2012-09-21
  * Copyright (c) 2012, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,15 +30,31 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **/
 
-#include "ocr-affinity.h"
+#ifndef __AFFINITY_H__
+#define __AFFINITY_H__
 
-u8 ocrAffinityCreate(ocrGuid_t * guid, ocrGuid_t policyDomain) {
-	ocrAffinity_t * affinity = newAffinity(OCR_AFFINITY_DEFAULT);
+#include "ocr-guid.h"
 
-	/*TODO REMOVE HACK: Currently policy domain is not used. We pass in the virtual node instead */
-	u64 vNode = (u64)policyDomain;
-	affinity->create(affinity, (void*)vNode);
+/**
+ * @brief Enum defining the type of affinities supported
+ * by the runtime
+ *
+ */
+typedef enum _ocrAffinityKind {
+    OCR_AFFINITY_DEFAULT = 0,
+    OCR_AFFINITY_REGULAR = OCR_AFFINITY_DEFAULT
+} ocrAffinityKind;
 
-	*guid = affinity->guid;
-	return 0;
-}
+typedef struct _ocrAffinity_t {
+	ocrGuid_t guid;
+    /**
+     * @brief Creates an affinity group
+     *
+     * @param self          Pointer for this data-block
+     * @param configuration Configuration parameters for model
+     */
+    void (*create)(struct _ocrAffinity_t *self, void * configuration);
+	
+} ocrAffinity_t;
+
+#endif /* __AFFINITY_H__ */

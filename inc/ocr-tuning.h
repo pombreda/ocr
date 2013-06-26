@@ -34,8 +34,21 @@
 #ifndef __OCR_TUNING_H__
 #define __OCR_TUNING_H__
 
+#include "ocr-types.h"
+
+
 // places include RAM, SP, or NUMA if available
 
 
+/**
+ * @brief Creates an affinity group and associates it with a policy domain
+ *
+ * @param guid            Returned value: GUID of the newly created affinity group
+ * @param policyDomain    Policy domain for this affinity group
+ * @return                Error code (0 on success)
+ **/
+u8 ocrAffinityCreate(ocrGuid_t * guid, ocrGuid_t policyDomain);
+
 /** TODO **/
+
 #endif /* __OCR_TUNING_H__ */

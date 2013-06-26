@@ -1,5 +1,5 @@
 /**
- * @brief Tuning language API implementation for OCR
+ * @brief OCR Affinity regular header
  * @authors Sanjay Chatterjee, Rice University
  * @date 2012-09-21
  * Copyright (c) 2012, Intel Corporation
@@ -31,15 +31,22 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **/
 
+#ifndef __AFFINITY_REGULAR_H__
+#define __AFFINITY_REGULAR_H__
+
 #include "ocr-affinity.h"
 
-u8 ocrAffinityCreate(ocrGuid_t * guid, ocrGuid_t policyDomain) {
-	ocrAffinity_t * affinity = newAffinity(OCR_AFFINITY_DEFAULT);
+/* 
+ * TODO: In future an affinity group may be associated with a policy domain,
+ * lists of active tasks and data blocks, etc. Currently, we hardcode the node 
+ * number for distributed OCR, but will go away in future.
+ *
+ */
+typedef struct _ocrAffinityRegular_t {
+    ocrAffinity_t base;
+	u64 vNode;
+} ocrAffinityRegular_t;
 
-	/*TODO REMOVE HACK: Currently policy domain is not used. We pass in the virtual node instead */
-	u64 vNode = (u64)policyDomain;
-	affinity->create(affinity, (void*)vNode);
+ocrAffinity_t* newAffinityRegular();
 
-	*guid = affinity->guid;
-	return 0;
-}
+#endif /* __AFFINITY_REGULAR_H__ */
