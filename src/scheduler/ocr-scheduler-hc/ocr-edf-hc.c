@@ -47,20 +47,28 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Guid-kind checkers for convenience
 //
-
 static bool isDatablockGuid(ocrGuid_t guid) {
+    if (NULL_GUID == guid) { 
+        return false;
+    }
     ocrGuidKind kind;
     globalGuidProvider->getKind(globalGuidProvider, guid, &kind);
     return kind == OCR_GUID_DB;
 }
 
 static bool isEventGuid(ocrGuid_t guid) {
+    if (NULL_GUID == guid) { 
+        return false;
+    }
     ocrGuidKind kind;
     globalGuidProvider->getKind(globalGuidProvider, guid, &kind);
     return kind == OCR_GUID_EVENT;
 }
 
 static bool isEdtGuid(ocrGuid_t guid) {
+    if (NULL_GUID == guid) { 
+        return false;
+    }
     ocrGuidKind kind;
     globalGuidProvider->getKind(globalGuidProvider, guid, &kind);
     return kind == OCR_GUID_EDT;
@@ -604,7 +612,7 @@ void taskSignaled(ocr_task_t * base, ocrGuid_t data, int slot) {
 //Registers an entity that will signal on one of the edt's slot.
 static void edtRegisterSignaler(ocr_task_t * base, ocrGuid_t signalerGuid, int slot) {
     // Only support event signals
-    assert(isEventGuid(signalerGuid) || isDatablockGuid(signalerGuid));
+    assert((signalerGuid == NULL_GUID) || isEventGuid(signalerGuid) || isDatablockGuid(signalerGuid));
     //DESIGN would be nice to pre-allocate all of this since we know the edt
     //       dep slot size at edt's creation, then what type should we expose
     //       for the signalers member in the task's data-structure ?
@@ -772,6 +780,10 @@ ocrGuid_t hc_task_factory_create ( struct ocr_task_factory_struct* factory, ocrE
 //These are essentially switches to dispatch call to the correct implementation
 
 void registerDependence(ocrGuid_t signalerGuid, ocrGuid_t waiterGuid, int slot) {
+    // Warning: signalerGuid can actually be a NULL_GUID.
+    // This can happen when users declared a certain number of
+    // depc but dynamically decide some are not used.
+
     // WAIT MODE: event-to-event registration
     // Note: do not call 'registerWaiter' here as it triggers event-to-edt 
     // registration, which should only be done on edtSchedule.
@@ -791,6 +803,10 @@ void registerDependence(ocrGuid_t signalerGuid, ocrGuid_t waiterGuid, int slot) 
 
 // Registers a waiter on a signaler
 static void registerWaiter(ocrGuid_t signalerGuid, ocrGuid_t waiterGuid, int slot) {
+    if(NULL_GUID == signalerGuid) {
+        // If the dependence was a NULL_GUID, consider this slot is already satisfied
+        signalWaiter(waiterGuid, NULL_GUID, slot);
+    } else 
     if (isEventGuid(signalerGuid)) {
         assert(isEdtGuid(waiterGuid) || isEventGuid(waiterGuid));
         hc_event_awaitable_t * target;
@@ -809,7 +825,7 @@ static void registerSignaler(ocrGuid_t signalerGuid, ocrGuid_t waiterGuid, int s
     // anything to edt registration
     if (isEdtGuid(waiterGuid)) {
         // edt waiting for a signal from an event or a datablock
-        assert(isEventGuid(signalerGuid) || isDatablockGuid(signalerGuid));
+        assert((signalerGuid == NULL_GUID) || isEventGuid(signalerGuid) || isDatablockGuid(signalerGuid));
         ocr_task_t * target = NULL;
         globalGuidProvider->getVal(globalGuidProvider, waiterGuid, (u64*)&target, NULL);
         edtRegisterSignaler(target, signalerGuid, slot);
