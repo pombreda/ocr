@@ -1242,6 +1242,28 @@ static blkPayload_t * tlsfRealloc(poolHdr_t * pPool, blkPayload_t * pOldBlkPaylo
 }
 
 void tlsfDestruct(ocrAllocator_t *self) {
+        //TODO-RL pretty much all other module depend on this
+        //being the last thing destroyed.
+        CHECK_AND_SET_MODULE_STATE(TLSF-ALLOCATOR, self, FINISH);
+        int i;
+        ocrAllocatorTlsf_t *rself = (ocrAllocatorTlsf_t*)self;
+        RESULT_ASSERT(rself->base.memories[0]->fcts.tag(
+            rself->base.memories[0], rself->poolStorageAddr, rself->poolStorageSize + rself->poolStorageAddr,
+            USER_FREE_TAG), ==, 0);
+        u64 poolAddr = rself->poolAddr - (((u64) rself->sliceCount)*((u64) rself->sliceSize));
+        for (i = 0; i < rself->sliceCount; i++) {
+    #ifdef ENABLE_VALGRIND
+            VALGRIND_DESTROY_MEMPOOL(poolAddr);
+            VALGRIND_MAKE_MEM_DEFINED(poolAddr, rself->sliceSize);
+    #endif
+            poolAddr += rself->sliceSize;
+        }
+
+    #ifdef ENABLE_VALGRIND
+        VALGRIND_DESTROY_MEMPOOL(poolAddr);
+        VALGRIND_MAKE_MEM_DEFINED(poolAddr, rself->poolSize);
+    #endif
+
     if(self->memoryCount) {
         self->memories[0]->fcts.destruct(self->memories[0]);
         // TODO: Should we do this? It is the clean thing to do but may
@@ -1316,52 +1338,38 @@ void tlsfStart(ocrAllocator_t *self, ocrPolicyDomain_t * PD ) {
     self->memories[0]->fcts.start(self->memories[0], PD);
 }
 
-void tlsfStop(ocrAllocator_t *self) {
-    CHECK_AND_SET_MODULE_STATE(TLSF-ALLOCATOR, self, STOP);
-    ocrPolicyMsg_t msg;
-    getCurrentEnv(&(self->pd), NULL, NULL, &msg);
-
-#ifdef OCR_ENABLE_STATISTICS
-    statsALLOCATOR_STOP(self->pd, self->guid, self, self->memories[0]->guid,
-                        self->memories[0]);
-#endif
-
-    ASSERT(self->memoryCount == 1);
-    self->memories[0]->fcts.stop(self->memories[0]);
-
-#define PD_MSG (&msg)
-#define PD_TYPE PD_MSG_GUID_DESTROY
-    msg.type = PD_MSG_GUID_DESTROY | PD_MSG_REQUEST;
-    PD_MSG_FIELD(guid) = self->fguid;
-    PD_MSG_FIELD(properties) = 0;
-    self->pd->fcts.processMessage(self->pd, &msg, false);
-#undef PD_MSG
-#undef PD_TYPE
-    self->fguid.guid = NULL_GUID;
-}
-
-void tlsfFinish(ocrAllocator_t *self) {
-    CHECK_AND_SET_MODULE_STATE(TLSF-ALLOCATOR, self, FINISH);
-    int i;
-    ocrAllocatorTlsf_t *rself = (ocrAllocatorTlsf_t*)self;
-    RESULT_ASSERT(rself->base.memories[0]->fcts.tag(
-        rself->base.memories[0], rself->poolStorageAddr, rself->poolStorageSize + rself->poolStorageAddr,
-        USER_FREE_TAG), ==, 0);
-    u64 poolAddr = rself->poolAddr - (((u64) rself->sliceCount)*((u64) rself->sliceSize));
-    for (i = 0; i < rself->sliceCount; i++) {
-#ifdef ENABLE_VALGRIND
-        VALGRIND_DESTROY_MEMPOOL(poolAddr);
-        VALGRIND_MAKE_MEM_DEFINED(poolAddr, rself->sliceSize);
-#endif
-        poolAddr += rself->sliceSize;
+void tlsfStop(ocrAllocator_t *self, ocrRunLevel_t newRl, u32 action) {
+    switch(newRl) {
+        case RL_STOP: {
+            CHECK_AND_SET_MODULE_STATE(TLSF-ALLOCATOR, self, STOP);
+        #ifdef OCR_ENABLE_STATISTICS
+            statsALLOCATOR_STOP(self->pd, self->guid, self, self->memories[0]->guid,
+                                self->memories[0]);
+        #endif
+            ASSERT(self->memoryCount == 1);
+            self->memories[0]->fcts.stop(self->memories[0], newRl, action);
+            break;
+        }
+        case RL_SHUTDOWN: {
+            // If we do this later the guid provider will have been deallocated
+            ocrPolicyMsg_t msg;
+            getCurrentEnv(&(self->pd), NULL, NULL, &msg);
+        #define PD_MSG (&msg)
+        #define PD_TYPE PD_MSG_GUID_DESTROY
+            msg.type = PD_MSG_GUID_DESTROY | PD_MSG_REQUEST;
+            PD_MSG_FIELD(guid) = self->fguid;
+            PD_MSG_FIELD(properties) = 0;
+            self->pd->fcts.processMessage(self->pd, &msg, false);
+        #undef PD_MSG
+        #undef PD_TYPE
+            self->fguid.guid = NULL_GUID;
+            ASSERT(self->memoryCount == 1);
+            self->memories[0]->fcts.stop(self->memories[0], newRl, action);
+            break;
+        }
+        default:
+            ASSERT("Unknown runlevel in stop function");
     }
-
-#ifdef ENABLE_VALGRIND
-    VALGRIND_DESTROY_MEMPOOL(poolAddr);
-    VALGRIND_MAKE_MEM_DEFINED(poolAddr, rself->poolSize);
-#endif
-    ASSERT(self->memoryCount == 1);
-    self->memories[0]->fcts.finish(self->memories[0]);
 }
 
 void* tlsfAllocate(
@@ -1563,8 +1571,7 @@ ocrAllocatorFactory_t * newAllocatorFactoryTlsf(ocrParamList_t *perType) {
     base->allocFcts.destruct = FUNC_ADDR(void (*)(ocrAllocator_t*), tlsfDestruct);
     base->allocFcts.begin = FUNC_ADDR(void (*)(ocrAllocator_t*, ocrPolicyDomain_t*), tlsfBegin);
     base->allocFcts.start = FUNC_ADDR(void (*)(ocrAllocator_t*, ocrPolicyDomain_t*), tlsfStart);
-    base->allocFcts.stop = FUNC_ADDR(void (*)(ocrAllocator_t*), tlsfStop);
-    base->allocFcts.finish = FUNC_ADDR(void (*)(ocrAllocator_t*), tlsfFinish);
+    base->allocFcts.stop = FUNC_ADDR(void (*)(ocrAllocator_t*,ocrRunLevel_t,u32), tlsfStop);
     base->allocFcts.allocate = FUNC_ADDR(void* (*)(ocrAllocator_t*, u64, u64), tlsfAllocate);
     //base->allocFcts.free = FUNC_ADDR(void (*)(void*), tlsfDeallocate);
     base->allocFcts.reallocate = FUNC_ADDR(void* (*)(ocrAllocator_t*, void*, u64), tlsfReallocate);
