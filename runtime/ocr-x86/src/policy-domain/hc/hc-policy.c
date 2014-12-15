@@ -138,7 +138,7 @@ void hcPolicyDomainStart(ocrPolicyDomain_t * policy) {
     dself->rlNbDownActions[2] = 0; // STOP
     dself->rlNbDownActions[3] = 0; // RT
     dself->rlNbDownActions[4] = 3; // USER
-    dself->rlDownActions = (u32**) policy->fcts.pdMalloc(policy, sizeof(u32)* RL_NB_CONCRETE);
+    dself->rlDownActions = (u32**) policy->fcts.pdMalloc(policy, sizeof(u32*)* RL_NB_CONCRETE);
     for(i = 0; i < RL_NB_CONCRETE; i++) {
         dself->rlDownActions[i] = (u32*) policy->fcts.pdMalloc(policy, sizeof(u32) * dself->rlNbDownActions[i]);
     }
